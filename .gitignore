@@ -1,0 +1,32 @@
+# Gradle
+.gradle
+
+# Kotlin
+.kotlin
+
+# IntelliJ
+*.iml
+
+# Build outputs
+build
+app/build
+*/build
+
+# Local configuration
+local.properties
+
+# Android Studio
+.idea/
+!.idea/.name
+
+# Logs
+*.log
+
+# Keystores
+*.jks
+*.keystore
+
+# Generated files
+captures
+.externalNativeBuild
+.cxx
