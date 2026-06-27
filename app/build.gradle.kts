@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "dev.frammenti.fuckumeter"
-        minSdk = 24
+        minSdk = 31
         targetSdk = 37
         versionCode = 1
         versionName = "0.1"
@@ -44,6 +44,8 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.glance.appwidget)
+    implementation(libs.glance.material)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
