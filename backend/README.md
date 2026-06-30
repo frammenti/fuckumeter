@@ -23,8 +23,6 @@ Here's a list of features included in this project:
 | [Content Negotiation](https://start.ktor.io/p/io.ktor/server-content-negotiation) | Provides automatic content conversion according to Content-Type and Accept headers |
 | [PostgreSQL](https://start.ktor.io/p/org.jetbrains/server-postgres) | Adds Postgres database support |
 | [Status Pages](https://start.ktor.io/p/io.ktor/server-status-pages) | Provides exception handling for routes |
-| [Swagger](https://start.ktor.io/p/io.ktor/server-swagger) | Serves Swagger UI for your project |
-| [OpenAPI](https://start.ktor.io/p/io.ktor/server-openapi) | Serves OpenAPI documentation |
 
 
 ## Building & Running

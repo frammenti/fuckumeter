@@ -5,6 +5,7 @@
 .kotlin
 
 # IntelliJ
+.idea
 *.iml
 
 # Build outputs
