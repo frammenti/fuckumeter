@@ -1,0 +1,12 @@
+ktor:
+  deployment:
+    port: 8080
+  application:
+    modules:
+      - dev.frammenti.fuckumeter.HttpKt.configureHttp
+      - dev.frammenti.fuckumeter.MonitoringKt.configureMonitoring
+      - dev.frammenti.fuckumeter.SerializationKt.configureSerialization
+      - dev.frammenti.fuckumeter.SecurityKt.configureSecurity
+      - dev.frammenti.fuckumeter.PostgresKt.configurePostgres
+      - dev.frammenti.fuckumeter.StatusPagesKt.configureStatusPages
+      - dev.frammenti.fuckumeter.RoutingKt.configureRouting

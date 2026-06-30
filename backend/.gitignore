@@ -1,0 +1,21 @@
+# Gradle
+.gradle
+
+# Kotlin
+.kotlin
+
+# IntelliJ
+*.iml
+
+# Build outputs
+build
+
+# Local configuration
+local.properties
+
+# Logs
+*.log
+
+# Keystores
+*.jks
+*.keystore
