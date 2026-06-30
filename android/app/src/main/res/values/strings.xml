@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name" translatable="false">Fuckumeter</string>
+    <string name="app_name">Fuckumeter</string>
     <string name="widget_description">Widget description</string>
 </resources>

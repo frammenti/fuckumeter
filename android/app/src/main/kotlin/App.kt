@@ -13,9 +13,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
-import ui.theme.FuckumeterTheme
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.padding
+import ui.theme.FuckumeterTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,8 +25,9 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Greeting(
                         name = "Android",
-                        modifier = Modifier.padding(innerPadding)
+                        modifier = Modifier.padding(innerPadding),
                     )
+                    AddWidgetButton()
                 }
             }
         }
@@ -39,7 +39,7 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
     Surface(color = Color.Green) {
         Text(
             text = "Hello $name!",
-            modifier = modifier.padding(24.dp)
+            modifier = modifier.padding(24.dp),
         )
     }
 }
