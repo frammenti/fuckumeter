@@ -1,9 +1,10 @@
 package dev.frammenti.fuckumeter
 
-import io.ktor.http.*
-import io.ktor.server.application.*
-import io.ktor.server.request.*
-import io.ktor.server.response.*
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.Application
+import io.ktor.server.application.log
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
 import io.ktor.server.routing.*
 import java.sql.Connection
 import java.sql.DriverManager

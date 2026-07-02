@@ -1,6 +1,5 @@
 package dev.frammenti.fuckumeter.widget.ui
 
-import android.R
 import androidx.compose.runtime.Composable
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -15,7 +14,7 @@ fun ActiveView(userLevel: Float, partnerLevel: Float) {
         modifier =
             GlanceModifier.fillMaxSize()
                 .background(GlanceTheme.colors.widgetBackground)
-                .cornerRadius(R.dimen.system_app_widget_background_radius)
+                .cornerRadius(android.R.dimen.system_app_widget_background_radius)
     ) {
         Bar(partnerLevel, true)
         Indicator(userLevel, true)
