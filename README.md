@@ -10,4 +10,4 @@ _It's like a social weather map._
 
 Currently in development for Android, but who knows what the future holds.
 
-For details on the system design, see the [wiki](https://github.com/frammenti/fuckumeter/wiki).
+For details on the software design, see the [wiki](https://github.com/frammenti/fuckumeter/wiki).
