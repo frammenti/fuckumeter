@@ -13,6 +13,7 @@ build
 
 # Local configuration
 local.properties
+.env
 
 # Logs
 *.log

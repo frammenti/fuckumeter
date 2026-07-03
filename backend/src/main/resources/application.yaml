@@ -7,6 +7,10 @@ ktor:
       - dev.frammenti.fuckumeter.MonitoringKt.configureMonitoring
       - dev.frammenti.fuckumeter.SerializationKt.configureSerialization
       - dev.frammenti.fuckumeter.SecurityKt.configureSecurity
-      - dev.frammenti.fuckumeter.PostgresKt.configurePostgres
+      - dev.frammenti.fuckumeter.database.DatabaseKt.initializeDatabase
       - dev.frammenti.fuckumeter.StatusPagesKt.configureStatusPages
       - dev.frammenti.fuckumeter.RoutingKt.configureRouting
+postgres:
+    url: ${?POSTGRES_URL}
+    user: ${?POSTGRES_USER}
+    password: ${?POSTGRES_PASSWORD}

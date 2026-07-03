@@ -15,6 +15,7 @@ application {
 kotlin {
     jvmToolchain(21)
 }
+
 dependencies {
     implementation(ktorLibs.serialization.kotlinx.json)
     implementation(ktorLibs.server.auth)
@@ -32,6 +33,10 @@ dependencies {
     implementation(libs.logback.classic)
     implementation(libs.micrometer.registryPrometheus)
     implementation(libs.postgresql)
+    implementation(libs.hikari)
+    implementation(libs.kotliquery)
+    implementation(libs.flyway)
+    implementation(libs.flyway.postgresql)
 
     testImplementation(kotlin("test"))
     testImplementation(ktorLibs.server.testHost)
