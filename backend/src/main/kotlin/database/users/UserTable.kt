@@ -6,7 +6,7 @@ import java.util.UUID
 
 data class User(
     val id: UUID,
-    val name: String?,
+    val name: String,
     val createdAt: OffsetDateTime,
     val updatedAt: OffsetDateTime?,
     val deactivatedAt: OffsetDateTime?,
@@ -16,7 +16,7 @@ data class User(
 val toUser: (Row) -> User = { row ->
     User(
         row.uuid("id"),
-        row.stringOrNull("name"),
+        row.string("name"),
         row.offsetDateTime("created_at"),
         row.offsetDateTimeOrNull("updated_at"),
         row.offsetDateTimeOrNull("deactivated_at"),
