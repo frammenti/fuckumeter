@@ -19,5 +19,126 @@ paths:
               examples:
                 Example#1:
                   value: "Hello World!"
+  /me:
+    get:
+      summary: Get the authenticated user
+      description: >
+        Returns the authenticated user's profile with the data
+        required to populate the application's home screen.
+      tags:
+        - Users
+      operationId: getMe
+      responses:
+        "200":
+          description: Authenticated user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResponse"
 components:
-  schemas: {}
+  schemas:
+    MeResponse:
+      type: object
+      required:
+        - id
+        - name
+        - active
+        - relationships
+        - groups
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        active:
+          type: boolean
+        deactivatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        relationships:
+          type: array
+          items:
+            $ref: "#/components/schemas/RelationshipSummary"
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupSummary"
+      example:
+        id: f477f5a7-4b4b-4af6-a8a5-8658f5263572
+        name: Alice
+        active: true
+        deactivatedAt: null
+        relationships:
+          - id: c4fc19ff-f252-459b-bd55-9a5408e77ecc
+            nickname: "Bobby ❤️"
+            active: true
+            level: 83
+            otherId: 16016446-44c7-4d8d-ac97-b90fb24907f8
+            otherName: Bob
+            otherActive: true
+            otherLevel: 52
+            groupIds:
+              - 6da0c788-368f-4888-88f3-fbf998bec709
+        groups:
+          - id: 6da0c788-368f-4888-88f3-fbf998bec709
+            name: The Triad
+            memberCount: 3
+
+    RelationshipSummary:
+      type: object
+      required:
+        - id
+        - nickname
+        - active
+        - level
+        - otherId
+        - otherName
+        - otherActive
+        - otherLevel
+        - groupIds
+      properties:
+        id:
+          type: string
+          format: uuid
+        nickname:
+          type: string
+        active:
+          type: boolean
+        level:
+          type: integer
+          minimum: 0
+          maximum: 100
+        otherId:
+          type: string
+          format: uuid
+        otherName:
+          type: string
+        otherActive:
+          type: boolean
+        otherLevel:
+          type: integer
+          minimum: 0
+          maximum: 100
+        groupIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    GroupSummary:
+      type: object
+      required:
+        - id
+        - name
+        - memberCount
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        memberCount:
+          type: integer
+          minimum: 1

@@ -11,29 +11,29 @@ Here are some useful links to get you started:
 ## Features
 Here's a list of features included in this project:
 
-| Name | Description |
-|------|-------------|
-| [Micrometer Metrics](https://start.ktor.io/p/io.ktor/server-metrics-micrometer) | Enables Micrometer metrics in your Ktor server application. |
-| [Call Logging](https://start.ktor.io/p/io.ktor/server-call-logging) | Logs client requests |
-| [Call ID](https://start.ktor.io/p/io.ktor/server-callid) | Allows to identify a request/call. |
-| [Authentication](https://start.ktor.io/p/io.ktor/server-auth) | Provides extension point for handling the Authorization header |
-| [Authentication JWT](https://start.ktor.io/p/io.ktor/server-auth-jwt) | Handles JSON Web Token (JWT) bearer authentication scheme |
-| [HSTS](https://start.ktor.io/p/io.ktor/server-hsts) | Enables HTTP Strict Transport Security (HSTS) |
-| [kotlinx.serialization](https://start.ktor.io/p/io.ktor/server-kotlinx-serialization) | Handles JSON serialization using kotlinx.serialization library |
-| [Content Negotiation](https://start.ktor.io/p/io.ktor/server-content-negotiation) | Provides automatic content conversion according to Content-Type and Accept headers |
-| [PostgreSQL](https://start.ktor.io/p/org.jetbrains/server-postgres) | Adds Postgres database support |
-| [Status Pages](https://start.ktor.io/p/io.ktor/server-status-pages) | Provides exception handling for routes |
+| Name                                                                                  | Description                                                                        |
+|---------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|
+| [Micrometer Metrics](https://start.ktor.io/p/io.ktor/server-metrics-micrometer)       | Enables Micrometer metrics in your Ktor server application.                        |
+| [Call Logging](https://start.ktor.io/p/io.ktor/server-call-logging)                   | Logs client requests                                                               |
+| [Call ID](https://start.ktor.io/p/io.ktor/server-callid)                              | Allows to identify a request/call.                                                 |
+| [Authentication](https://start.ktor.io/p/io.ktor/server-auth)                         | Provides extension point for handling the Authorization header                     |
+| [Authentication JWT](https://start.ktor.io/p/io.ktor/server-auth-jwt)                 | Handles JSON Web Token (JWT) bearer authentication scheme                          |
+| [HSTS](https://start.ktor.io/p/io.ktor/server-hsts)                                   | Enables HTTP Strict Transport Security (HSTS)                                      |
+| [kotlinx.serialization](https://start.ktor.io/p/io.ktor/server-kotlinx-serialization) | Handles JSON serialization using kotlinx.serialization library                     |
+| [Content Negotiation](https://start.ktor.io/p/io.ktor/server-content-negotiation)     | Provides automatic content conversion according to Content-Type and Accept headers |
+| [PostgreSQL](https://start.ktor.io/p/org.jetbrains/server-postgres)                   | Adds Postgres database support                                                     |
+| [Status Pages](https://start.ktor.io/p/io.ktor/server-status-pages)                   | Provides exception handling for routes                                             |
 
 
 ## Building & Running
 To build or run the project, use one of the following tasks:
 
 
-| Task | Description |
-|------|-------------|
-| `./gradlew test`    | Run the tests     |
-| `./gradlew build`   | Build the project |
-| `./gradlew run`     | Run the server    |
+| Task              | Description       |
+|-------------------|-------------------|
+| `./gradlew test`  | Run the tests     |
+| `./gradlew build` | Build the project |
+| `./gradlew run`   | Run the server    |
 
 If the server starts successfully, you'll see the following output:
 ```

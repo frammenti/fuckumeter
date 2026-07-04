@@ -134,8 +134,32 @@ CREATE TABLE invites (
     created_by_user_id  uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     consumed_by_user_id uuid        REFERENCES users (id) ON DELETE SET NULL,
     code_hash           text        NOT NULL UNIQUE,
-    type                invite_type NOT NULL,
-    metadata            jsonb,
+    type                invite_type NOT NULL
+                                    CHECK (
+                                        CASE type
+                                            WHEN 'INVITE_USER'
+                                                THEN device_name IS NULL
+                                                AND recovery_request_id IS NULL
+
+                                            WHEN 'JOIN_GROUP'
+                                                THEN group_id IS NOT NULL
+                                                AND device_name IS NULL
+                                                AND recovery_request_id IS NULL
+
+                                            WHEN 'LINK_DEVICE'
+                                                THEN group_id IS NULL
+                                                AND device_name IS NOT NULL
+                                                AND recovery_request_id IS NULL
+
+                                            WHEN 'RECOVERY'
+                                                THEN group_id IS NULL
+                                                AND device_name IS NULL
+                                                AND recovery_request_id IS NOT NULL
+                                            END
+                                    ),
+    group_id            uuid,
+    device_name         text,
+    recovery_request_id bigint,
     created_at          timestamptz NOT NULL DEFAULT now(),
     expires_at          timestamptz NOT NULL,
     consumed_at         timestamptz,

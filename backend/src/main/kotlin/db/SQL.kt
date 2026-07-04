@@ -1,4 +1,4 @@
-package dev.frammenti.fuckumeter.database
+package dev.frammenti.fuckumeter.db
 
 import kotliquery.queryOf
 
