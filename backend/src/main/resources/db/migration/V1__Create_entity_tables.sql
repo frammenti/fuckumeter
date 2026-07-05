@@ -170,6 +170,9 @@ CREATE TABLE invites (
 
 CREATE INDEX invites_created_by_user_id_idx ON invites (created_by_user_id);
 
+-- Single invite per group
+CREATE INDEX invites_group_id_idx ON invites (group_id);
+
 -- For cleanup jobs
 CREATE INDEX invites_expires_at_idx ON invites (expires_at);
 

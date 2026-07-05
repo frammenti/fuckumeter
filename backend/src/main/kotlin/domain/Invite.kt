@@ -48,6 +48,23 @@ sealed class Invite(
         RECOVERY,
     }
 
+    enum class InviteStatus {
+        NONE,
+        ACTIVE,
+        EXPIRED,
+        CONSUMED,
+        REVOKED,
+    }
+
+    fun status(): InviteStatus {
+        return when {
+            this.consumedAt != null -> InviteStatus.CONSUMED
+            this.revokedAt != null -> InviteStatus.REVOKED
+            this.expiresAt >= now() -> InviteStatus.EXPIRED
+            else -> InviteStatus.ACTIVE
+        }
+    }
+
     class InviteUser : Invite {
         override val type = InviteType.INVITE_USER
         val groupId: UUID?
@@ -72,7 +89,7 @@ sealed class Invite(
         }
     }
 
-    class GroupJoin : Invite {
+    class JoinGroup : Invite {
         override val type = InviteType.JOIN_GROUP
         val groupId: UUID
 
@@ -162,7 +179,7 @@ sealed class Invite(
         infix fun factory(row: Row): Invite =
             when (InviteType.valueOf(row.string("type"))) {
                 InviteType.INVITE_USER -> InviteUser(row)
-                InviteType.JOIN_GROUP -> GroupJoin(row)
+                InviteType.JOIN_GROUP -> JoinGroup(row)
                 InviteType.LINK_DEVICE -> LinkDevice(row)
                 InviteType.RECOVERY -> Recovery(row)
             }

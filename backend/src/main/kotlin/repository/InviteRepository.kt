@@ -38,18 +38,20 @@ class InviteRepository {
         )
     }
 
-    private fun mapInviteWithCode(row: Row): Invite {
+    private fun mapWithCode(row: Row): Invite {
         val invite = Invite.factory(row)
         val encrypted = Encrypted(row)
         invite.initializeCode(InviteCipher.decrypt(encrypted))
         return invite
     }
 
-    fun findWithCode(userId: UUID, type: Invite.InviteType): Invite? =
-        Database.session {
-            single(
-                sql(
-                    """
+    fun findLatestByCreatorAndType(
+        userId: UUID,
+        type: Invite.InviteType,
+    ): Invite? = Database.session {
+        single(
+            sql(
+                """
                     SELECT *
                     FROM invites
                     WHERE created_by_user_id = :user_id
@@ -57,10 +59,29 @@ class InviteRepository {
                     ORDER BY id DESC
                     LIMIT 1;
                     """,
-                    "user_id" to userId,
-                    "type" to type.name,
-                ),
-                ::mapInviteWithCode,
-            )
-        }
+                "user_id" to userId,
+                "type" to type.name,
+            ),
+            ::mapWithCode,
+        )
+    }
+
+    // Group invite is reused even if created by another user
+    fun findLatestForGroup(groupId: UUID): Invite? = Database.session {
+        single(
+            sql(
+                """
+                    SELECT *
+                    FROM invites
+                    WHERE group_id = :group_id
+                    AND type = :type
+                    ORDER BY id DESC
+                    LIMIT 1;
+                    """,
+                "group_id" to groupId,
+                "type" to Invite.InviteType.JOIN_GROUP.name,
+            ),
+            ::mapWithCode,
+        )
+    }
 }
