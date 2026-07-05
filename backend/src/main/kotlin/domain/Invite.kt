@@ -15,7 +15,6 @@ import java.util.UUID
 sealed class Invite(
     val createdBy: UUID,
     val consumedBy: UUID? = null,
-    val code: String,
     val createdAt: OffsetDateTime,
     val expiresAt: OffsetDateTime,
     val consumedAt: OffsetDateTime? = null,
@@ -23,12 +22,19 @@ sealed class Invite(
 ) {
     abstract val type: InviteType
 
+    lateinit var code: String
+        protected set
+
+    fun initializeCode(code: String) {
+        check(!::code.isInitialized)
+        this.code = code
+    }
+
     constructor(
         row: Row
     ) : this(
         row.uuid("created_by_user_id"),
         row.uuidOrNull("consumed_by_user_id"),
-        row.string("code"),
         row.offsetDateTime("created_at"),
         row.offsetDateTime("expires_at"),
         row.offsetDateTimeOrNull("consumed_at"),
@@ -54,10 +60,10 @@ sealed class Invite(
             expiresAt: OffsetDateTime = createdAt.plus(INVITE_USER_EXPIRY),
         ) : super(
             createdBy = createdBy,
-            code = code,
             createdAt = createdAt,
             expiresAt = expiresAt,
         ) {
+            this.code = code
             this.groupId = groupId
         }
 
@@ -78,10 +84,10 @@ sealed class Invite(
             expiresAt: OffsetDateTime = createdAt.plus(GROUP_JOIN_EXPIRY),
         ) : super(
             createdBy = createdBy,
-            code = code,
             createdAt = createdAt,
             expiresAt = expiresAt,
         ) {
+            this.code = code
             this.groupId = groupId
         }
 
@@ -102,10 +108,10 @@ sealed class Invite(
             expiresAt: OffsetDateTime = createdAt.plus(LINK_DEVICE_EXPIRY),
         ) : super(
             createdBy = createdBy,
-            code = code,
             createdAt = createdAt,
             expiresAt = expiresAt,
         ) {
+            this.code = code
             this.deviceName = deviceName
         }
 
@@ -126,10 +132,10 @@ sealed class Invite(
             expiresAt: OffsetDateTime = createdAt.plus(RECOVERY_EXPIRY),
         ) : super(
             createdBy = createdBy,
-            code = code,
             createdAt = createdAt,
             expiresAt = expiresAt,
         ) {
+            this.code = code
             this.recoveryRequestId = recoveryRequestId
         }
 

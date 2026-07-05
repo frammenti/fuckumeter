@@ -119,7 +119,7 @@ CREATE TABLE devices (
     name                 text        NOT NULL,
     notification_enabled boolean     NOT NULL,
     fcm_token            text        UNIQUE,
-    refresh_token_hash   text        NOT NULL,
+    refresh_token_hash   bytea       NOT NULL,
     created_at           timestamptz NOT NULL DEFAULT now(),
     last_accessed_at     timestamptz
 );
@@ -133,7 +133,9 @@ CREATE TABLE invites (
     id                  bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     created_by_user_id  uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     consumed_by_user_id uuid        REFERENCES users (id) ON DELETE SET NULL,
-    code_hash           text        NOT NULL UNIQUE,
+    code_hash           bytea       NOT NULL UNIQUE,
+    code_ciphertext     bytea       NOT NULL,
+    code_nonce          bytea       NOT NULL,
     type                invite_type NOT NULL
                                     CHECK (
                                         CASE type
