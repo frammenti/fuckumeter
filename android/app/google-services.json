@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "921201697026",
+    "project_id": "fuckumeter",
+    "storage_bucket": "fuckumeter.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:921201697026:android:ade9c108f4db14f06fe21b",
+        "android_client_info": {
+          "package_name": "dev.frammenti.fuckumeter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyArmiVDbs2UoxoTQUQwz1VSnN4JeNzbI_Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
