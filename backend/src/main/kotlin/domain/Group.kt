@@ -1,15 +1,15 @@
 package dev.frammenti.fuckumeter.domain
 
 import kotliquery.Row
-import java.time.OffsetDateTime
+import java.time.Instant
 import java.util.UUID
 
 class Group(
-    val id: UUID,
+    val id: UUID = UUID.randomUUID(),
     val name: String,
     val updatedBy: UUID?,
-    val createdAt: OffsetDateTime,
-    val updatedAt: OffsetDateTime?,
+    val createdAt: Instant = Instant.now(),
+    val updatedAt: Instant?,
 ) {
     constructor(
         row: Row
@@ -17,7 +17,7 @@ class Group(
         row.uuid("id"),
         row.string("name"),
         row.uuidOrNull("updated_by_user_id"),
-        row.offsetDateTime("created_at"),
-        row.offsetDateTimeOrNull("updated_at"),
+        row.instant("created_at"),
+        row.instantOrNull("updated_at"),
     )
 }

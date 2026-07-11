@@ -17,8 +17,8 @@ postgres:
 
 jwt:
   issuer: Fuckumeter
-  audience: jwt-audience
-  realm: https://fum.frammenti.dev/
+  audience: fuckumeter-app
+  realm: fum.frammenti.dev
   secret: ${?JWT_SECRET}
 
 refreshTokenSecret: ${?REFRESH_TOKEN_SECRET}

@@ -37,6 +37,7 @@ dependencies {
     implementation(libs.kotliquery)
     implementation(libs.flyway)
     implementation(libs.flyway.postgresql)
+    implementation(libs.google.auth)
 
     testImplementation(kotlin("test"))
     testImplementation(ktorLibs.server.testHost)

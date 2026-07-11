@@ -1,25 +1,25 @@
 package dev.frammenti.fuckumeter.domain
 
 import kotliquery.Row
-import java.time.OffsetDateTime
+import java.time.Instant
 import java.util.UUID
 
 class User(
-    val id: UUID,
+    val id: UUID = UUID.randomUUID(),
     val name: String,
-    val createdAt: OffsetDateTime,
-    val updatedAt: OffsetDateTime?,
-    val deactivatedAt: OffsetDateTime?,
-    val deletedAt: OffsetDateTime?,
+    val createdAt: Instant = Instant.now(),
+    val updatedAt: Instant? = null,
+    val deactivatedAt: Instant? = null,
+    val deletedAt: Instant? = null,
 ) {
     constructor(
         row: Row
     ) : this(
         row.uuid("id"),
         row.string("name"),
-        row.offsetDateTime("created_at"),
-        row.offsetDateTimeOrNull("updated_at"),
-        row.offsetDateTimeOrNull("deactivated_at"),
-        row.offsetDateTimeOrNull("deleted_at"),
+        row.instant("created_at"),
+        row.instantOrNull("updated_at"),
+        row.instantOrNull("deactivated_at"),
+        row.instantOrNull("deleted_at"),
     )
 }

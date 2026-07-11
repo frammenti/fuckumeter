@@ -8,17 +8,17 @@ import dev.frammenti.fuckumeter.domain.Defaults.RECOVERY_CODE_LENGTH
 import dev.frammenti.fuckumeter.domain.Defaults.RECOVERY_EXPIRY
 import kotliquery.Row
 import java.security.SecureRandom
-import java.time.OffsetDateTime
-import java.time.OffsetDateTime.now
+import java.time.Instant
+import java.time.Instant.now
 import java.util.UUID
 
 sealed class Invite(
     val createdBy: UUID,
     val consumedBy: UUID? = null,
-    val createdAt: OffsetDateTime,
-    val expiresAt: OffsetDateTime,
-    val consumedAt: OffsetDateTime? = null,
-    val revokedAt: OffsetDateTime? = null,
+    val createdAt: Instant,
+    val expiresAt: Instant,
+    val consumedAt: Instant? = null,
+    val revokedAt: Instant? = null,
 ) {
     abstract val type: InviteType
 
@@ -35,10 +35,10 @@ sealed class Invite(
     ) : this(
         row.uuid("created_by_user_id"),
         row.uuidOrNull("consumed_by_user_id"),
-        row.offsetDateTime("created_at"),
-        row.offsetDateTime("expires_at"),
-        row.offsetDateTimeOrNull("consumed_at"),
-        row.offsetDateTimeOrNull("revoked_at"),
+        row.instant("created_at"),
+        row.instant("expires_at"),
+        row.instantOrNull("consumed_at"),
+        row.instantOrNull("revoked_at"),
     )
 
     enum class InviteType {
@@ -73,8 +73,8 @@ sealed class Invite(
             createdBy: UUID,
             code: String = Code.generate(),
             groupId: UUID? = null,
-            createdAt: OffsetDateTime = now(),
-            expiresAt: OffsetDateTime = createdAt.plus(INVITE_USER_EXPIRY),
+            createdAt: Instant = now(),
+            expiresAt: Instant = createdAt.plus(INVITE_USER_EXPIRY),
         ) : super(
             createdBy = createdBy,
             createdAt = createdAt,
@@ -97,8 +97,8 @@ sealed class Invite(
             createdBy: UUID,
             code: String = Code.generate(),
             groupId: UUID,
-            createdAt: OffsetDateTime = now(),
-            expiresAt: OffsetDateTime = createdAt.plus(GROUP_JOIN_EXPIRY),
+            createdAt: Instant = now(),
+            expiresAt: Instant = createdAt.plus(GROUP_JOIN_EXPIRY),
         ) : super(
             createdBy = createdBy,
             createdAt = createdAt,
@@ -121,8 +121,8 @@ sealed class Invite(
             createdBy: UUID,
             code: String = Code.generate(),
             deviceName: String,
-            createdAt: OffsetDateTime = now(),
-            expiresAt: OffsetDateTime = createdAt.plus(LINK_DEVICE_EXPIRY),
+            createdAt: Instant = now(),
+            expiresAt: Instant = createdAt.plus(LINK_DEVICE_EXPIRY),
         ) : super(
             createdBy = createdBy,
             createdAt = createdAt,
@@ -145,8 +145,8 @@ sealed class Invite(
             createdBy: UUID,
             code: String = Code.generate(RECOVERY_CODE_LENGTH),
             recoveryRequestId: Int,
-            createdAt: OffsetDateTime = now(),
-            expiresAt: OffsetDateTime = createdAt.plus(RECOVERY_EXPIRY),
+            createdAt: Instant = now(),
+            expiresAt: Instant = createdAt.plus(RECOVERY_EXPIRY),
         ) : super(
             createdBy = createdBy,
             createdAt = createdAt,

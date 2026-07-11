@@ -8,3 +8,10 @@ inline fun <reified T> Any?.expect(): T? {
     @Suppress("UNCHECKED_CAST")
     return this as T?
 }
+
+inline fun <reified T> Any?.expectNotNull(): T {
+    checkNotNull(this) {
+        "Expected ${T::class.qualifiedName}, got NULL"
+    }
+    return this as T
+}

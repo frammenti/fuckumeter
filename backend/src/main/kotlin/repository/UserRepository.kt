@@ -1,20 +1,29 @@
 package dev.frammenti.fuckumeter.repository
 
-import dev.frammenti.fuckumeter.db.Database
+import dev.frammenti.fuckumeter.db.Database.session
 import dev.frammenti.fuckumeter.db.sql
 import dev.frammenti.fuckumeter.domain.User
-import kotliquery.queryOf
-import kotliquery.sessionOf
+import dev.frammenti.fuckumeter.extensions.expectOne
 import java.util.UUID
 
 class UserRepository {
-    fun find(id: UUID): User? = Database.session {
+    private fun User.params() =
+        arrayOf(
+            "id" to id,
+            "name" to name,
+            "created_at" to createdAt,
+            "updated_at" to updatedAt,
+            "deactivated_at" to deactivatedAt,
+            "deleted_at" to deletedAt,
+        )
+
+    fun find(id: UUID): User? = session {
         single(
             sql(
                 """
                 SELECT *
                 FROM users
-                WHERE id = :id
+                WHERE id = :id;
                 """,
                 "id" to id,
             ),
@@ -22,37 +31,60 @@ class UserRepository {
         )
     }
 
-    fun find2(id: UUID): User? {
-        return Database.session {
-            run(
+    fun insert(user: User) = session {
+        update(
                 sql(
-                        """
-                    SELECT *
-                    FROM users
-                    WHERE id = :id
+                    """
+                    INSERT INTO users (id, name, created_at)
+                    VALUES (:id, :name, :created_at);
                     """,
-                        "id" to id.toString(),
-                    )
-                    .map(::User)
-                    .asSingle
+                    *user.params(),
+                )
             )
-        }
+            .expectOne()
     }
 
-    fun find3(id: UUID): User? {
-        val session = sessionOf(Database.ds)
-
-        return session.run(
-            queryOf(
+    fun rename(id: UUID, name: String) = session {
+        update(
+                sql(
                     """
-                SELECT *
-                FROM users
-                WHERE id = :id
-                """,
-                    mapOf("id" to id.toString()),
+                    UPDATE users
+                    SET name = :name,
+                        updated_at = now()
+                    WHERE id = :id
+                    """,
+                    "id" to id,
+                    "name" to name,
                 )
-                .map(::User)
-                .asSingle
-        )
+            )
+            .expectOne()
+    }
+
+    fun deactivate(id: UUID) = session {
+        update(
+                sql(
+                    """
+                    UPDATE users
+                    SET deactivated_at = now()
+                    WHERE id = :id
+                    """,
+                    "id" to id,
+                )
+            )
+            .expectOne()
+    }
+
+    fun delete(id: UUID) = session {
+        update(
+                sql(
+                    """
+                    UPDATE users
+                    SET deleted_at = now()
+                    WHERE id = :id
+                    """,
+                    "id" to id,
+                )
+            )
+            .expectOne()
     }
 }

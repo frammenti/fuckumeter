@@ -1,30 +1,51 @@
 package dev.frammenti.fuckumeter.repository
 
-import dev.frammenti.fuckumeter.db.Database
+import dev.frammenti.fuckumeter.db.Database.session
 import dev.frammenti.fuckumeter.db.sql
 import dev.frammenti.fuckumeter.domain.Invite
+import dev.frammenti.fuckumeter.extensions.expectOne
 import dev.frammenti.fuckumeter.security.AesGcmCipher.Encrypted
 import dev.frammenti.fuckumeter.security.InviteCipher
 import dev.frammenti.fuckumeter.security.InviteHasher
 import kotliquery.Row
+import java.io.Serializable
 import java.util.UUID
 
 class InviteRepository {
-    fun getInvitesByUser(userId: UUID): List<Invite> = Database.session {
-        list(
-            sql(
-                """
-                SELECT *
-                FROM invites
-                WHERE created_by_user_id = :user_id
-                """,
-                "user_id" to userId,
-            ),
-            Invite::factory,
-        )
+    private fun Invite.params(): Array<Pair<String, Serializable?>> {
+        val encrypted = InviteCipher.encrypt(code)
+        val additionalProperties =
+            when (this) {
+                is Invite.InviteUser -> arrayOf("group_id" to groupId)
+                is Invite.JoinGroup -> arrayOf("group_id" to groupId)
+                is Invite.LinkDevice -> arrayOf("device_name" to deviceName)
+                is Invite.Recovery ->
+                    arrayOf("recovery_request_id" to recoveryRequestId)
+            }
+
+        return arrayOf(
+                "created_by_user_id" to createdBy,
+                "consumed_by_user_id" to consumedBy,
+                "code_hash" to InviteHasher.hash(code),
+                "code_ciphertext" to encrypted.ciphertext,
+                "code_nonce" to encrypted.nonce,
+                "type" to type,
+                "created_at" to createdAt,
+                "expires_at" to expiresAt,
+                "consumed_at" to consumedAt,
+                "revoked_at" to revokedAt,
+            )
+            .plus(additionalProperties)
     }
 
-    fun findByCode(code: String): Invite? = Database.session {
+    private fun mapWithCode(row: Row): Invite {
+        val invite = Invite.factory(row)
+        val encrypted = Encrypted(row)
+        invite.initializeCode(InviteCipher.decrypt(encrypted))
+        return invite
+    }
+
+    fun findByCode(code: ByteArray): Invite? = session {
         single(
             sql(
                 """
@@ -38,17 +59,24 @@ class InviteRepository {
         )
     }
 
-    private fun mapWithCode(row: Row): Invite {
-        val invite = Invite.factory(row)
-        val encrypted = Encrypted(row)
-        invite.initializeCode(InviteCipher.decrypt(encrypted))
-        return invite
+    fun findAllByUser(userId: UUID): List<Invite> = session {
+        list(
+            sql(
+                """
+                SELECT *
+                FROM invites
+                WHERE created_by_user_id = :user_id
+                """,
+                "user_id" to userId,
+            ),
+            Invite::factory,
+        )
     }
 
-    fun findLatestByCreatorAndType(
+    fun findLatestByUser(
         userId: UUID,
         type: Invite.InviteType,
-    ): Invite? = Database.session {
+    ): Invite? = session {
         single(
             sql(
                 """
@@ -67,21 +95,43 @@ class InviteRepository {
     }
 
     // Group invite is reused even if created by another user
-    fun findLatestForGroup(groupId: UUID): Invite? = Database.session {
+    fun findLatestForGroup(groupId: UUID): Invite? = session {
         single(
             sql(
                 """
                     SELECT *
                     FROM invites
                     WHERE group_id = :group_id
-                    AND type = :type
+                    AND type = JOIN_GROUP
                     ORDER BY id DESC
                     LIMIT 1;
                     """,
-                "group_id" to groupId,
-                "type" to Invite.InviteType.JOIN_GROUP.name,
+                "group_id" to groupId
             ),
             ::mapWithCode,
         )
+    }
+
+    fun insert(invite: Invite) = session {
+        update(
+                sql(
+                    """
+                    INSERT INTO invites (
+                        created_by_user_id, code_hash,
+                        code_ciphertext, code_nonce, type,
+                        group_id, device_name, recovery_request_id
+                        created_at, expires_at
+                    )
+                    VALUES (
+                        :created_by_user_id, :code_hash,
+                        :code_ciphertext, :code_nonce, :type,
+                        :group_id, :device_name, :recovery_request_id
+                        :created_at, :expires_at
+                    );
+                    """,
+                    *invite.params(),
+                )
+            )
+            .expectOne()
     }
 }

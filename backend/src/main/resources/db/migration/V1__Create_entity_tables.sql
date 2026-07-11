@@ -121,7 +121,7 @@ CREATE TABLE devices (
     fcm_token            text        UNIQUE,
     refresh_token_hash   bytea       NOT NULL,
     created_at           timestamptz NOT NULL DEFAULT now(),
-    last_accessed_at     timestamptz
+    last_seen_at         timestamptz
 );
 
 CREATE INDEX devices_user_id_idx ON devices (user_id);

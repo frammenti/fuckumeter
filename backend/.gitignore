@@ -21,3 +21,6 @@ local.properties
 # Keystores
 *.jks
 *.keystore
+
+# Credentials
+credentials
