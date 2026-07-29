@@ -15,8 +15,10 @@ object Defaults {
 
     const val INVITE_CODE_LENGTH = 8
     const val RECOVERY_CODE_LENGTH = 12
+
     val INVITE_USER_EXPIRY: Duration = Duration.ofDays(7)
     val GROUP_JOIN_EXPIRY: Duration = Duration.ofDays(30)
     val LINK_DEVICE_EXPIRY: Duration = Duration.ofMinutes(15)
     val RECOVERY_EXPIRY: Duration = Duration.ofHours(24)
+    val RECOVERY_WAIT: Duration = Duration.ofHours(24)
 }
