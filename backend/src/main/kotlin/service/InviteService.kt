@@ -11,13 +11,13 @@ class InviteService(private val repository: InviteRepository) {
     fun statusOf(invite: Invite?): InviteStatus =
         invite?.status() ?: InviteStatus.NONE
 
-    fun getInviteUser(
+    fun inviteUser(
         userId: UUID,
         groupId: UUID?, // not sure if it really makes sense
-    ): InviteResponse<InviteUser> {
+    ): InviteResponse {
         val latest =
             repository
-                .findLatestByCreatorAndType(
+                .findLatestByUser(
                     userId,
                     InviteType.INVITE_USER,
                 )
@@ -25,32 +25,44 @@ class InviteService(private val repository: InviteRepository) {
 
         val previousStatus = statusOf(latest)
 
-        val invite =
-            if (previousStatus == InviteStatus.ACTIVE) latest!!
-            else InviteUser(createdBy = userId, groupId = groupId)
+        if (previousStatus == InviteStatus.ACTIVE)
+            return InviteResponse(
+                latest!!.code,
+                latest.expiresAt,
+                previousStatus,
+            )
 
-        return InviteResponse(invite, previousStatus)
+        val invite = InviteUser(createdBy = userId, groupId = groupId)
+        repository.insert(invite)
+
+        return InviteResponse(invite.code, invite.expiresAt, previousStatus)
     }
 
-    fun getJoinGroup(userId: UUID, groupId: UUID): InviteResponse<JoinGroup> {
+    fun joinGroup(userId: UUID, groupId: UUID): InviteResponse {
         val latest = repository.findLatestForGroup(groupId).expect<JoinGroup>()
 
         val previousStatus = statusOf(latest)
 
-        val invite =
-            if (previousStatus == InviteStatus.ACTIVE) latest!!
-            else JoinGroup(createdBy = userId, groupId = groupId)
+        if (previousStatus == InviteStatus.ACTIVE)
+            return InviteResponse(
+                latest!!.code,
+                latest.expiresAt,
+                previousStatus,
+            )
 
-        return InviteResponse(invite, previousStatus)
+        val invite = JoinGroup(createdBy = userId, groupId = groupId)
+        repository.insert(invite)
+
+        return InviteResponse(invite.code, invite.expiresAt, previousStatus)
     }
 
-    fun getLinkDevice(
+    fun linkDevice(
         userId: UUID,
         deviceName: String, // a default is always provided by the client app
-    ): InviteResponse<LinkDevice> {
+    ): InviteResponse {
         val latest =
             repository
-                .findLatestByCreatorAndType(
+                .findLatestByUser(
                     userId,
                     InviteType.LINK_DEVICE,
                 )
@@ -58,21 +70,27 @@ class InviteService(private val repository: InviteRepository) {
 
         val previousStatus = statusOf(latest)
 
-        val invite =
-            if (previousStatus == InviteStatus.ACTIVE) latest!!
-            else LinkDevice(createdBy = userId, deviceName = deviceName)
+        if (previousStatus == InviteStatus.ACTIVE)
+            return InviteResponse(
+                latest!!.code,
+                latest.expiresAt,
+                previousStatus,
+            )
 
-        return InviteResponse(invite, previousStatus)
+        val invite = LinkDevice(createdBy = userId, deviceName = deviceName)
+        repository.insert(invite)
+
+        return InviteResponse(invite.code, invite.expiresAt, previousStatus)
     }
 
-    fun getRecovery(
+    fun recovery(
         userId: UUID,
         recoveryRequestId:
             Int, // it always gets called after checking the recovery request
-    ): InviteResponse<Recovery> {
+    ): InviteResponse {
         val latest =
             repository
-                .findLatestByCreatorAndType(
+                .findLatestByUser(
                     userId,
                     InviteType.RECOVERY,
                 )
@@ -80,14 +98,20 @@ class InviteService(private val repository: InviteRepository) {
 
         val previousStatus = statusOf(latest)
 
-        val invite =
-            if (previousStatus == InviteStatus.ACTIVE) latest!!
-            else
-                Recovery(
-                    createdBy = userId,
-                    recoveryRequestId = recoveryRequestId,
-                )
+        if (previousStatus == InviteStatus.ACTIVE)
+            return InviteResponse(
+                latest!!.code,
+                latest.expiresAt,
+                previousStatus,
+            )
 
-        return InviteResponse(invite, previousStatus)
+        val invite =
+            Recovery(
+                createdBy = userId,
+                recoveryRequestId = recoveryRequestId,
+            )
+        repository.insert(invite)
+
+        return InviteResponse(invite.code, invite.expiresAt, previousStatus)
     }
 }

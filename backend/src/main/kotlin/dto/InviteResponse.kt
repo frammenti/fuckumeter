@@ -5,7 +5,8 @@ import dev.frammenti.fuckumeter.domain.Invite.InviteStatus
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class InviteResponse<T : Invite>(
-    val invite: T,
+data class InviteResponse(
+    val code: String,
+    val expiresAt: Instant,
     val previousStatus: InviteStatus,
 )

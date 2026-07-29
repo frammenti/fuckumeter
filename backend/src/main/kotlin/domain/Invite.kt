@@ -60,7 +60,7 @@ sealed class Invite(
         return when {
             this.consumedAt != null -> InviteStatus.CONSUMED
             this.revokedAt != null -> InviteStatus.REVOKED
-            this.expiresAt >= now() -> InviteStatus.EXPIRED
+            this.expiresAt <= now() -> InviteStatus.EXPIRED
             else -> InviteStatus.ACTIVE
         }
     }

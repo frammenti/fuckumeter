@@ -29,7 +29,7 @@ class InviteRepository {
                 "code_hash" to InviteHasher.hash(code),
                 "code_ciphertext" to encrypted.ciphertext,
                 "code_nonce" to encrypted.nonce,
-                "type" to type,
+                "type" to type.name,
                 "created_at" to createdAt,
                 "expires_at" to expiresAt,
                 "consumed_at" to consumedAt,
@@ -83,7 +83,7 @@ class InviteRepository {
                     SELECT *
                     FROM invites
                     WHERE created_by_user_id = :user_id
-                    AND type = :type
+                    AND type = :type::invite_type
                     ORDER BY id DESC
                     LIMIT 1;
                     """,
@@ -119,13 +119,13 @@ class InviteRepository {
                     INSERT INTO invites (
                         created_by_user_id, code_hash,
                         code_ciphertext, code_nonce, type,
-                        group_id, device_name, recovery_request_id
+                        group_id, device_name, recovery_request_id,
                         created_at, expires_at
                     )
                     VALUES (
                         :created_by_user_id, :code_hash,
-                        :code_ciphertext, :code_nonce, :type,
-                        :group_id, :device_name, :recovery_request_id
+                        :code_ciphertext, :code_nonce, :type::invite_type,
+                        :group_id, :device_name, :recovery_request_id,
                         :created_at, :expires_at
                     );
                     """,
