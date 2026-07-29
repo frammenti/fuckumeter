@@ -100,20 +100,25 @@ class DeviceRepository {
             .expectOne()
     }
 
-    fun updateRefreshToken(id: UUID, token: String) = session {
-        update(
+    fun updateRefreshToken(id: UUID, oldToken: String, newToken: String) =
+        session {
+            single(
                 sql(
                     """
                     UPDATE devices
-                    SET refresh_token_hash = :refresh_token_hash
+                    SET refresh_token_hash = :newHash
                     WHERE id = :id
+                      AND refresh_token_hash = :oldHash
+                    RETURNING user_id;
                     """,
                     "id" to id,
-                    "refresh_token_hash" to RefreshHasher.hash(token),
+                    "oldHash" to RefreshHasher.hash(oldToken),
+                    "newHash" to RefreshHasher.hash(newToken),
                 )
-            )
-            .expectOne()
-    }
+            ) { row ->
+                row.uuid("user_id")
+            }
+        }
 
     fun updateFcmToken(id: UUID, token: String) = session {
         update(
@@ -142,6 +147,11 @@ class DeviceRepository {
                     "last_seen_at" to time,
                 )
             )
+            .expectOne()
+    }
+
+    fun delete(id: UUID) = session {
+        update(sql("DELETE FROM devices WHERE id = :id", "id" to id))
             .expectOne()
     }
 }

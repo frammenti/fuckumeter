@@ -30,8 +30,6 @@ fun Application.initCrypto() {
         HexFormat.of()
             .parseHex(config.property("inviteEncryptionKey").getString())
 
-    InviteCipherInit = AesGcmCipher(inviteKey)
-
     RefreshHasherInit = HmacHasher(refreshTokenSecret)
     InviteHasherInit = HmacHasher(inviteSecret)
     InviteCipherInit = AesGcmCipher(inviteKey)

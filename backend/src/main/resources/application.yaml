@@ -8,7 +8,7 @@ ktor:
       - dev.frammenti.fuckumeter.SerializationKt.configureSerialization
       - dev.frammenti.fuckumeter.security.SecurityKt.configureSecurity
       - dev.frammenti.fuckumeter.db.ModuleKt.initializeDatabase
-      - dev.frammenti.fuckumeter.StatusPagesKt.configureStatusPages
+      - dev.frammenti.fuckumeter.exceptions.StatusPagesKt.configureStatusPages
       - dev.frammenti.fuckumeter.controller.RoutingKt.configureRouting
 postgres:
   url: ${?POSTGRES_URL}
@@ -20,6 +20,7 @@ jwt:
   audience: fuckumeter-app
   realm: fum.frammenti.dev
   secret: ${?JWT_SECRET}
+  accessTokenExpirationSeconds: 300
 
 refreshTokenSecret: ${?REFRESH_TOKEN_SECRET}
 inviteSecret: ${?INVITE_SECRET}
