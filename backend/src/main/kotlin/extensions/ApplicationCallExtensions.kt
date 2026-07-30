@@ -1,10 +1,10 @@
 package dev.frammenti.fuckumeter.extensions
 
+import dev.frammenti.fuckumeter.auth.UserDevicePrincipal
 import dev.frammenti.fuckumeter.exceptions.AlreadyAuthenticatedException
 import dev.frammenti.fuckumeter.exceptions.AuthenticationRequiredException
 import dev.frammenti.fuckumeter.exceptions.InvalidParameterException
 import dev.frammenti.fuckumeter.exceptions.MissingParameterException
-import dev.frammenti.fuckumeter.security.UserDevicePrincipal
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.auth.principal
 import java.util.UUID

@@ -1,4 +1,4 @@
-package dev.frammenti.fuckumeter.controller
+package dev.frammenti.fuckumeter.routing
 
 import dev.frammenti.fuckumeter.service.GroupService
 import io.ktor.server.auth.authenticate

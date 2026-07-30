@@ -6,22 +6,20 @@ ktor:
       - dev.frammenti.fuckumeter.HttpKt.configureHttp
       - dev.frammenti.fuckumeter.MonitoringKt.configureMonitoring
       - dev.frammenti.fuckumeter.SerializationKt.configureSerialization
-      - dev.frammenti.fuckumeter.security.SecurityKt.configureSecurity
-      - dev.frammenti.fuckumeter.db.ModuleKt.initializeDatabase
+      - dev.frammenti.fuckumeter.auth.JwtAuthKt.configureJwtAuth
       - dev.frammenti.fuckumeter.exceptions.StatusPagesKt.configureStatusPages
-      - dev.frammenti.fuckumeter.controller.RoutingKt.configureRouting
-postgres:
+      - dev.frammenti.fuckumeter.ApplicationKt.module
+database:
   url: ${?POSTGRES_URL}
   user: ${?POSTGRES_USER}
   password: ${?POSTGRES_PASSWORD}
-
 jwt:
-  issuer: Fuckumeter
+  issuer: https://fum.frammenti.dev
   audience: fuckumeter-app
-  realm: fum.frammenti.dev
+  realm: Fuckumeter
   secret: ${?JWT_SECRET}
   accessTokenExpirationSeconds: 300
-
-refreshTokenSecret: ${?REFRESH_TOKEN_SECRET}
-inviteSecret: ${?INVITE_SECRET}
-inviteEncryptionKey: ${?INVITE_ENCRYPTION_KEY}
+security:
+  refreshTokenSecret: ${?REFRESH_TOKEN_SECRET}
+  inviteSecret: ${?INVITE_SECRET}
+  inviteEncryptionKey: ${?INVITE_ENCRYPTION_KEY}

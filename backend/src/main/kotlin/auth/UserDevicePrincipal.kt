@@ -1,4 +1,4 @@
-package dev.frammenti.fuckumeter.security
+package dev.frammenti.fuckumeter.auth
 
 import com.auth0.jwt.interfaces.Payload
 import io.ktor.server.auth.jwt.JWTPayloadHolder

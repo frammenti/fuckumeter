@@ -1,17 +1,16 @@
-package dev.frammenti.fuckumeter.security
+package dev.frammenti.fuckumeter.auth
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
-import dev.frammenti.fuckumeter.dto.TokenPair
 import java.security.SecureRandom
 import java.time.Instant
 import java.util.Base64
 import java.util.Date
 import java.util.UUID
 
-class TokenProvider {
+class TokenProvider(private val config: JwtConfig) {
     private val random = SecureRandom()
-    private val algorithm = Algorithm.HMAC256(JwtConfig.secret)
+    private val algorithm = Algorithm.HMAC256(config.secret)
 
     fun refreshToken(): String {
         val bytes = ByteArray(32) // 256 bits
@@ -21,17 +20,13 @@ class TokenProvider {
 
     fun accessToken(userId: UUID, deviceId: UUID): String {
         return JWT.create()
-            .withAudience(JwtConfig.audience)
-            .withIssuer(JwtConfig.issuer)
+            .withAudience(config.audience)
+            .withIssuer(config.issuer)
             .withSubject(userId.toString())
             .withClaim("deviceId", deviceId.toString())
             .withExpiresAt(
-                Date.from(Instant.now().plusSeconds(JwtConfig.expiration))
+                Date.from(Instant.now().plusSeconds(config.expiration))
             )
             .sign(algorithm)
-    }
-
-    fun pair(userId: UUID, deviceId: UUID): TokenPair {
-        return TokenPair(accessToken(userId, deviceId), refreshToken())
     }
 }

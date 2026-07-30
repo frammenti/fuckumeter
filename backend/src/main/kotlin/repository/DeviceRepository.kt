@@ -1,14 +1,14 @@
 package dev.frammenti.fuckumeter.repository
 
-import dev.frammenti.fuckumeter.db.Database.session
-import dev.frammenti.fuckumeter.db.sql
+import dev.frammenti.fuckumeter.db.Database
 import dev.frammenti.fuckumeter.domain.Device
 import dev.frammenti.fuckumeter.extensions.expectOne
-import dev.frammenti.fuckumeter.security.RefreshHasher
+import dev.frammenti.fuckumeter.security.HmacHasher
 import java.time.Instant
 import java.util.UUID
 
-class DeviceRepository {
+class DeviceRepository(database: Database, private val hasher: HmacHasher) :
+    Repository(database) {
     private fun Device.params() =
         arrayOf(
             "id" to id,
@@ -16,7 +16,7 @@ class DeviceRepository {
             "name" to name,
             "notification_enabled" to notificationEnabled,
             "fcm_token" to fcmToken,
-            "refresh_token_hash" to RefreshHasher.hash(refreshToken),
+            "refresh_token_hash" to hasher.hash(refreshToken),
             "created_at" to createdAt,
             "last_seen_at" to lastSeenAt,
         )
@@ -112,8 +112,8 @@ class DeviceRepository {
                     RETURNING user_id;
                     """,
                     "id" to id,
-                    "oldHash" to RefreshHasher.hash(oldToken),
-                    "newHash" to RefreshHasher.hash(newToken),
+                    "oldHash" to hasher.hash(oldToken),
+                    "newHash" to hasher.hash(newToken),
                 )
             ) { row ->
                 row.uuid("user_id")

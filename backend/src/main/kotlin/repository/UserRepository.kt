@@ -1,12 +1,11 @@
 package dev.frammenti.fuckumeter.repository
 
-import dev.frammenti.fuckumeter.db.Database.session
-import dev.frammenti.fuckumeter.db.sql
+import dev.frammenti.fuckumeter.db.Database
 import dev.frammenti.fuckumeter.domain.User
 import dev.frammenti.fuckumeter.extensions.expectOne
 import java.util.UUID
 
-class UserRepository {
+class UserRepository(database: Database) : Repository(database) {
     private fun User.params() =
         arrayOf(
             "id" to id,

@@ -1,19 +1,22 @@
 package dev.frammenti.fuckumeter.repository
 
-import dev.frammenti.fuckumeter.db.Database.session
-import dev.frammenti.fuckumeter.db.sql
+import dev.frammenti.fuckumeter.db.Database
 import dev.frammenti.fuckumeter.domain.Invite
 import dev.frammenti.fuckumeter.extensions.expectOne
-import dev.frammenti.fuckumeter.security.AesGcmCipher.Encrypted
-import dev.frammenti.fuckumeter.security.InviteCipher
-import dev.frammenti.fuckumeter.security.InviteHasher
-import kotliquery.Row
+import dev.frammenti.fuckumeter.security.AesGcmCipher
+import dev.frammenti.fuckumeter.security.Encrypted
+import dev.frammenti.fuckumeter.security.HmacHasher
 import java.io.Serializable
 import java.util.UUID
+import kotliquery.Row
 
-class InviteRepository {
+class InviteRepository(
+    database: Database,
+    private val hasher: HmacHasher,
+    private val cipher: AesGcmCipher,
+) : Repository(database) {
     private fun Invite.params(): Array<Pair<String, Serializable?>> {
-        val encrypted = InviteCipher.encrypt(code)
+        val encrypted = cipher.encrypt(code)
         val additionalProperties =
             when (this) {
                 is Invite.InviteUser -> arrayOf("group_id" to groupId)
@@ -26,7 +29,7 @@ class InviteRepository {
         return arrayOf(
                 "created_by_user_id" to createdBy,
                 "consumed_by_user_id" to consumedBy,
-                "code_hash" to InviteHasher.hash(code),
+                "code_hash" to hasher.hash(code),
                 "code_ciphertext" to encrypted.ciphertext,
                 "code_nonce" to encrypted.nonce,
                 "type" to type.name,
@@ -41,7 +44,7 @@ class InviteRepository {
     private fun mapWithCode(row: Row): Invite {
         val invite = Invite.factory(row)
         val encrypted = Encrypted(row)
-        invite.initializeCode(InviteCipher.decrypt(encrypted))
+        invite.initializeCode(cipher.decrypt(encrypted))
         return invite
     }
 
@@ -106,7 +109,7 @@ class InviteRepository {
                     ORDER BY id DESC
                     LIMIT 1;
                     """,
-                "group_id" to groupId
+                "group_id" to groupId,
             ),
             ::mapWithCode,
         )

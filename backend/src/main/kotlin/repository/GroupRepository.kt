@@ -1,7 +1,6 @@
 package dev.frammenti.fuckumeter.repository
 
-import dev.frammenti.fuckumeter.db.Database.session
-import dev.frammenti.fuckumeter.db.sql
+import dev.frammenti.fuckumeter.db.Database
 import dev.frammenti.fuckumeter.domain.Group
 import dev.frammenti.fuckumeter.domain.GroupMember
 import dev.frammenti.fuckumeter.domain.GroupMembership
@@ -10,7 +9,7 @@ import dev.frammenti.fuckumeter.extensions.expectNotNull
 import dev.frammenti.fuckumeter.extensions.expectOne
 import java.util.UUID
 
-class GroupRepository {
+class GroupRepository(database: Database) : Repository(database) {
     private fun Group.params() =
         arrayOf(
             "id" to id,

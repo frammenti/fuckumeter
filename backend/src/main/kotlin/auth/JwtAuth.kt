@@ -1,4 +1,4 @@
-package dev.frammenti.fuckumeter.security
+package dev.frammenti.fuckumeter.auth
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
@@ -12,15 +12,15 @@ import io.ktor.server.auth.jwt.jwt
 import io.ktor.server.response.respond
 
 fun Application.configureJwtAuth() {
-    JwtConfig.initialize(environment.config)
+    val config = JwtConfig(environment.config)
 
     authentication {
         jwt {
-            realm = JwtConfig.realm
+            realm = config.realm
             verifier(
-                JWT.require(Algorithm.HMAC256(JwtConfig.secret))
-                    .withAudience(JwtConfig.audience)
-                    .withIssuer(JwtConfig.issuer)
+                JWT.require(Algorithm.HMAC256(config.secret))
+                    .withAudience(config.audience)
+                    .withIssuer(config.issuer)
                     .build()
             )
             validate { credential ->

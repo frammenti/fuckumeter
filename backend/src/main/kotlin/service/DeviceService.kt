@@ -3,7 +3,7 @@ package dev.frammenti.fuckumeter.service
 import dev.frammenti.fuckumeter.dto.TokenPair
 import dev.frammenti.fuckumeter.exceptions.InvalidRefreshTokenException
 import dev.frammenti.fuckumeter.repository.DeviceRepository
-import dev.frammenti.fuckumeter.security.TokenProvider
+import dev.frammenti.fuckumeter.auth.TokenProvider
 import java.util.UUID
 
 class DeviceService(

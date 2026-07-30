@@ -1,8 +1,10 @@
 package dev.frammenti.fuckumeter.exceptions
 
+import dev.frammenti.fuckumeter.auth.JwtConfig
 import dev.frammenti.fuckumeter.dto.ErrorResponse
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.auth.HttpAuthHeader
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.application.log
@@ -13,13 +15,20 @@ import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
 
 fun Application.configureStatusPages() {
+    val realm = JwtConfig(environment.config).realm
+    val challenge: HttpAuthHeader =
+        HttpAuthHeader.Parameterized(
+            authScheme = "Bearer",
+            parameters = mapOf(HttpAuthHeader.Parameters.Realm to realm),
+        )
+
     install(StatusPages) {
         // Custom exceptions
         exception<ApiException> { call, cause ->
             if (cause is AuthenticationException) {
                 call.response.headers.append(
                     HttpHeaders.WWWAuthenticate,
-                    cause.challenge.render(),
+                    challenge.render(),
                 )
             }
 

@@ -1,4 +1,4 @@
-package dev.frammenti.fuckumeter.controller
+package dev.frammenti.fuckumeter.routing
 
 import dev.frammenti.fuckumeter.dto.RefreshTokenRequest
 import dev.frammenti.fuckumeter.extensions.requireUUID

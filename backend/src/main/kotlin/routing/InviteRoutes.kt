@@ -1,11 +1,11 @@
-package dev.frammenti.fuckumeter.controller
+package dev.frammenti.fuckumeter.routing
 
 import dev.frammenti.fuckumeter.dto.InviteUserRequest
 import dev.frammenti.fuckumeter.dto.JoinGroupRequest
 import dev.frammenti.fuckumeter.dto.LinkDeviceRequest
 import dev.frammenti.fuckumeter.dto.RecoveryRequest
 import dev.frammenti.fuckumeter.extensions.userId
-import dev.frammenti.fuckumeter.security.UserDevicePrincipal
+import dev.frammenti.fuckumeter.auth.UserDevicePrincipal
 import dev.frammenti.fuckumeter.service.InviteService
 import io.ktor.server.auth.AuthenticationStrategy
 import io.ktor.server.auth.authenticate
