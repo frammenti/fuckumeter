@@ -7,20 +7,14 @@ sealed class AuthenticationException(
     message: String = "Unauthorized",
 ) : ApiException(HttpStatusCode.Unauthorized, code, message)
 
-class ExpiredAccessTokenException :
+class InvalidAccessTokenException :
     AuthenticationException(
-        "expired_access_token",
-        "Expired access token",
+        "invalid_access_token",
+        "Token is not valid or has expired",
     )
 
 class InvalidRefreshTokenException :
     AuthenticationException(
         "invalid_refresh_token",
-        "Invalid refresh token",
-    )
-
-class AuthenticationRequiredException :
-    AuthenticationException(
-        "authentication_required",
-        "Authentication required",
+        "Refresh token is not valid",
     )

@@ -1,6 +1,6 @@
 package dev.frammenti.fuckumeter.service
 
-import dev.frammenti.fuckumeter.dto.TokenPair
+import dev.frammenti.fuckumeter.dto.RefreshTokenResponse
 import dev.frammenti.fuckumeter.exceptions.InvalidRefreshTokenException
 import dev.frammenti.fuckumeter.repository.DeviceRepository
 import dev.frammenti.fuckumeter.auth.TokenProvider
@@ -10,7 +10,7 @@ class DeviceService(
     private val devices: DeviceRepository,
     private val tokens: TokenProvider,
 ) {
-    fun refreshToken(deviceId: UUID, refreshToken: String): TokenPair {
+    fun refreshToken(deviceId: UUID, refreshToken: String): RefreshTokenResponse {
 
         val newRefreshToken = tokens.refreshToken()
 
@@ -21,7 +21,7 @@ class DeviceService(
                 newRefreshToken,
             ) ?: throw InvalidRefreshTokenException()
 
-        return TokenPair(
+        return RefreshTokenResponse(
             token = tokens.accessToken(userId, deviceId),
             refreshToken = newRefreshToken,
         )

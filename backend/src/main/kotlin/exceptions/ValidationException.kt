@@ -10,11 +10,23 @@ sealed class ValidationException(
 class MissingParameterException(parameter: String) :
     ValidationException(
         "missing_parameter",
-        "Missing required parameter \"$parameter\"",
+        "Required parameter \"$parameter\" is missing",
     )
 
 class InvalidParameterException(parameter: String, type: String) :
     ValidationException(
         "invalid_parameter",
-        "Invalid parameter \"$parameter\", expected $type",
+        "Parameter \"$parameter\" is not valid, expected $type",
+    )
+
+class MissingRequestBodyException(message: String?) :
+    ValidationException(
+        "missing_request_body",
+        message ?: "Request body is missing",
+    )
+
+class InvalidRequestBodyException(message: String?) :
+    ValidationException(
+        "invalid_request_body",
+        message ?: "Request body is not valid",
     )

@@ -1,12 +1,13 @@
 package dev.frammenti.fuckumeter.extensions
 
 import dev.frammenti.fuckumeter.auth.UserDevicePrincipal
-import dev.frammenti.fuckumeter.exceptions.AlreadyAuthenticatedException
-import dev.frammenti.fuckumeter.exceptions.AuthenticationRequiredException
-import dev.frammenti.fuckumeter.exceptions.InvalidParameterException
-import dev.frammenti.fuckumeter.exceptions.MissingParameterException
+import dev.frammenti.fuckumeter.dto.ErrorResponse
+import dev.frammenti.fuckumeter.exceptions.*
+import io.ktor.http.HttpHeaders
+import io.ktor.http.auth.HttpAuthHeader
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.auth.principal
+import io.ktor.server.response.respond
 import java.util.UUID
 
 fun ApplicationCall.requireUUID(parameter: String): UUID =
@@ -25,10 +26,29 @@ fun ApplicationCall.requireAnonymous() {
 }
 
 fun ApplicationCall.requireAuthenticated(): UserDevicePrincipal =
-    principal<UserDevicePrincipal>() ?: throw AuthenticationRequiredException()
+    principal<UserDevicePrincipal>() ?: throw InvalidAccessTokenException()
 
 val ApplicationCall.userId: UUID
     get() = requireAuthenticated().userId
 
 val ApplicationCall.deviceId: UUID
     get() = requireAuthenticated().deviceId
+
+suspend fun ApplicationCall.error(cause: ApiException, realm: String? = null) {
+    if (cause is AuthenticationException && realm != null) {
+        val challenge =
+            HttpAuthHeader.Parameterized(
+                authScheme = "Bearer",
+                parameters = mapOf(HttpAuthHeader.Parameters.Realm to realm),
+            )
+        response.headers.append(
+            HttpHeaders.WWWAuthenticate,
+            challenge.render(),
+        )
+    }
+
+    respond(
+        status = cause.status,
+        message = ErrorResponse(cause.code, cause.message),
+    )
+}

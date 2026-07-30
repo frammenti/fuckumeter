@@ -1,88 +1,41 @@
 package dev.frammenti.fuckumeter.exceptions
 
 import dev.frammenti.fuckumeter.auth.JwtConfig
-import dev.frammenti.fuckumeter.dto.ErrorResponse
-import io.ktor.http.HttpHeaders
+import dev.frammenti.fuckumeter.extensions.error
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.auth.HttpAuthHeader
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.application.log
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.ContentTransformationException
-import io.ktor.server.plugins.NotFoundException
 import io.ktor.server.plugins.statuspages.StatusPages
-import io.ktor.server.response.respond
 
 fun Application.configureStatusPages() {
     val realm = JwtConfig(environment.config).realm
-    val challenge: HttpAuthHeader =
-        HttpAuthHeader.Parameterized(
-            authScheme = "Bearer",
-            parameters = mapOf(HttpAuthHeader.Parameters.Realm to realm),
-        )
 
     install(StatusPages) {
         // Custom exceptions
         exception<ApiException> { call, cause ->
-            if (cause is AuthenticationException) {
-                call.response.headers.append(
-                    HttpHeaders.WWWAuthenticate,
-                    challenge.render(),
-                )
-            }
-
-            call.respond(
-                cause.status,
-                ErrorResponse(
-                    code = cause.code,
-                    message = cause.message,
-                ),
-            )
+            call.error(cause, realm)
         }
 
         // Ktor validation exceptions
         exception<BadRequestException> { call, cause ->
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorResponse(
-                    code = "invalid_request_body",
-                    message = cause.message ?: "Invalid request body",
-                ),
-            )
+            call.error(InvalidRequestBodyException(cause.message))
         }
 
         exception<ContentTransformationException> { call, cause ->
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorResponse(
-                    code = "missing_request_body",
-                    message = cause.message ?: "Missing request body",
-                ),
-            )
-        }
-
-        exception<NotFoundException> { call, cause ->
-            call.respond(
-                HttpStatusCode.NotFound,
-                ErrorResponse(
-                    code = "not_found",
-                    message = cause.message ?: "Not found",
-                ),
-            )
+            call.error(MissingRequestBodyException(cause.message))
         }
 
         // Catchall
         exception<Throwable> { call, cause ->
             call.application.log.error("Unhandled exception", cause)
+            call.error(UnhandledException())
+        }
 
-            call.respond(
-                HttpStatusCode.InternalServerError,
-                ErrorResponse(
-                    code = "server_error",
-                    message = "Internal server error",
-                ),
-            )
+        status(HttpStatusCode.NotFound) { call, status ->
+            call.error(NotFoundException())
         }
     }
 }
