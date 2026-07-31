@@ -9,4 +9,6 @@ class JwtConfig(config: ApplicationConfig) {
     val secret = config.property("jwt.secret").getString()
     val expiration =
         config.property("jwt.accessTokenExpirationSeconds").getString().toLong()
+
+    constructor() : this(ApplicationConfig(null))
 }

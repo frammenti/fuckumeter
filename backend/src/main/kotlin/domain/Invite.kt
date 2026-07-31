@@ -6,11 +6,11 @@ import dev.frammenti.fuckumeter.domain.Defaults.INVITE_USER_EXPIRY
 import dev.frammenti.fuckumeter.domain.Defaults.LINK_DEVICE_EXPIRY
 import dev.frammenti.fuckumeter.domain.Defaults.RECOVERY_CODE_LENGTH
 import dev.frammenti.fuckumeter.domain.Defaults.RECOVERY_EXPIRY
-import kotliquery.Row
+import dev.frammenti.fuckumeter.shared.Time.now
 import java.security.SecureRandom
 import java.time.Instant
-import java.time.Instant.now
 import java.util.UUID
+import kotliquery.Row
 
 sealed class Invite(
     val createdBy: UUID,

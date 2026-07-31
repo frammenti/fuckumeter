@@ -1,14 +1,15 @@
 package dev.frammenti.fuckumeter.domain
 
-import kotliquery.Row
+import dev.frammenti.fuckumeter.shared.Time.now
 import java.time.Instant
 import java.util.UUID
+import kotliquery.Row
 
 class Group(
     val id: UUID = UUID.randomUUID(),
     val name: String,
     val updatedBy: UUID?,
-    val createdAt: Instant = Instant.now(),
+    val createdAt: Instant = now(),
     val updatedAt: Instant?,
 ) {
     constructor(

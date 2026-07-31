@@ -22,19 +22,21 @@ class UserService(
             Device(
                 userId = user.id,
                 name = deviceName,
-                refreshToken = tokens.refreshToken(),
             )
+        val refreshToken = tokens.refreshToken()
 
         users.transaction<Unit> {
             users.insert(user)
-            devices.insert(device)
+            devices.insert(device, refreshToken)
         }
+
+        val token = tokens.accessToken(user.id, device.id)
 
         return UsersResponse(
             user.id,
             device.id,
-            tokens.accessToken(user.id, device.id),
-            device.refreshToken,
+            token,
+            refreshToken,
         )
     }
 }

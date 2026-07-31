@@ -16,7 +16,6 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
             "name" to name,
             "notification_enabled" to notificationEnabled,
             "fcm_token" to fcmToken,
-            "refresh_token_hash" to hasher.hash(refreshToken),
             "created_at" to createdAt,
             "last_seen_at" to lastSeenAt,
         )
@@ -49,7 +48,7 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
         )
     }
 
-    fun insert(device: Device) = session {
+    fun insert(device: Device, refreshToken: String) = session {
         update(
                 sql(
                     """
@@ -62,6 +61,7 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
                         :fcm_token, :refresh_token_hash, :created_at
                     );
                     """,
+                    "refresh_token_hash" to hasher.hash(refreshToken),
                     *device.params(),
                 )
             )

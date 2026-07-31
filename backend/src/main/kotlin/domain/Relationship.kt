@@ -2,9 +2,10 @@ package dev.frammenti.fuckumeter.domain
 
 import dev.frammenti.fuckumeter.domain.Defaults.NOTIFICATION_ENABLED_RELATIONSHIP
 import dev.frammenti.fuckumeter.domain.Defaults.NOTIFICATION_THRESHOLD
-import kotliquery.Row
+import dev.frammenti.fuckumeter.shared.Time.now
 import java.time.Instant
 import java.util.UUID
+import kotliquery.Row
 
 class Relationship(
     val id: UUID,
@@ -14,7 +15,7 @@ class Relationship(
     val nickname: String?,
     val notificationEnabled: Boolean = NOTIFICATION_ENABLED_RELATIONSHIP,
     val notificationThreshold: Int = NOTIFICATION_THRESHOLD,
-    val createdAt: Instant = Instant.now(),
+    val createdAt: Instant = now(),
     val updatedAt: Instant?,
     val deactivatedAt: Instant?,
     val deletedAt: Instant?,

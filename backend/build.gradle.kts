@@ -1,4 +1,3 @@
-
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(ktorLibs.plugins.ktor)
@@ -6,6 +5,7 @@ plugins {
 }
 
 group = "dev.frammenti.fuckumeter"
+
 version = "1.0.0-SNAPSHOT"
 
 application {
@@ -14,6 +14,14 @@ application {
 
 kotlin {
     jvmToolchain(21)
+}
+
+tasks.test {
+    useJUnitPlatform()
+
+    testLogging {
+        events("passed", "skipped", "failed")
+    }
 }
 
 dependencies {
@@ -39,6 +47,7 @@ dependencies {
     implementation(libs.flyway.postgresql)
     implementation(libs.google.auth)
 
-    testImplementation(kotlin("test"))
     testImplementation(ktorLibs.server.testHost)
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform)
 }

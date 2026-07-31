@@ -1,0 +1,25 @@
+ktor:
+  deployment:
+    port: 8080
+  application:
+    modules:
+      - dev.frammenti.fuckumeter.HttpKt.configureHttp
+      - dev.frammenti.fuckumeter.MonitoringKt.configureMonitoring
+      - dev.frammenti.fuckumeter.SerializationKt.configureSerialization
+      - dev.frammenti.fuckumeter.auth.JwtAuthKt.configureJwtAuth
+      - dev.frammenti.fuckumeter.exceptions.StatusPagesKt.configureStatusPages
+      - dev.frammenti.fuckumeter.ApplicationKt.module
+database:
+  url: jdbc:postgresql://localhost:5432/test
+  user: fuckumeter_test
+  password: test
+jwt:
+  issuer: https://fum.frammenti.dev
+  audience: fuckumeter-app
+  realm: Fuckumeter
+  secret: FUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU=
+  accessTokenExpirationSeconds: 300
+security:
+  refreshTokenSecret: MUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU=
+  inviteSecret: YUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU=
+  inviteEncryptionKey: EWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW=

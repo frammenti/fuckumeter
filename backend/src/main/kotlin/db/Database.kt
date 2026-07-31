@@ -15,6 +15,8 @@ class Database(config: DatabaseConfig) : DatabaseContext {
         Flyway.configure().dataSource(ds).load().migrate()
     }
 
+    constructor() : this(DatabaseConfig())
+
     private fun createDataSource(config: DatabaseConfig): HikariDataSource {
         val hikariConfig =
             HikariConfig().apply {
