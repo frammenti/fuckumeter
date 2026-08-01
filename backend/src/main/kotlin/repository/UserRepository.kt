@@ -50,7 +50,7 @@ class UserRepository(database: Database) : Repository(database) {
                     UPDATE users
                     SET name = :name,
                         updated_at = now()
-                    WHERE id = :id
+                    WHERE id = :id;
                     """,
                     "id" to id,
                     "name" to name,
@@ -59,31 +59,50 @@ class UserRepository(database: Database) : Repository(database) {
             .expectOne()
     }
 
-    fun deactivate(id: UUID) = session {
+    fun deactivate(id: UUID): Boolean = session {
         update(
-                sql(
-                    """
+            sql(
+                """
                     UPDATE users
-                    SET deactivated_at = now()
+                    SET deactivated_at = now(),
+                        updated_at = now()
                     WHERE id = :id
+                      AND deactivated_at IS NULL
+                      AND deleted_at IS NULL;
                     """,
-                    "id" to id,
-                )
+                "id" to id,
             )
-            .expectOne()
+        ) == 1
     }
 
-    fun delete(id: UUID) = session {
+    fun reactivate(id: UUID): Boolean = session {
         update(
-                sql(
-                    """
+            sql(
+                """
+                    UPDATE users
+                    SET deactivated_at = NULL,
+                        updated_at = now()
+                    WHERE id = :id
+                      AND deactivated_at IS NOT NULL
+                      AND deleted_at IS NULL;
+                    """,
+                "id" to id,
+            )
+        ) == 1
+    }
+
+    fun delete(id: UUID): Boolean = session {
+        update(
+            sql(
+                """
                     UPDATE users
                     SET deleted_at = now()
                     WHERE id = :id
+                      AND deactivated_at IS NOT NULL
+                      AND deleted_at IS NULL;
                     """,
-                    "id" to id,
-                )
+                "id" to id,
             )
-            .expectOne()
+        ) == 1
     }
 }

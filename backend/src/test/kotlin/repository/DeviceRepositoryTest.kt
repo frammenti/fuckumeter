@@ -79,7 +79,7 @@ class DeviceRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `rename throws for missing device`() {
+    fun `rename throws for unknown device`() {
         assertThrows<NoSuchElementException> {
             repository.rename(UUID.randomUUID(), "Phone")
         }
@@ -97,7 +97,7 @@ class DeviceRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `enableNotification throws for missing device`() {
+    fun `enableNotification throws for unknown device`() {
         assertThrows<NoSuchElementException> {
             repository.enableNotification(UUID.randomUUID(), true)
         }
@@ -171,7 +171,7 @@ class DeviceRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `updateFcmToken throws for missing device`() {
+    fun `updateFcmToken throws for unknown device`() {
         assertThrows<NoSuchElementException> {
             repository.updateFcmToken(UUID.randomUUID(), "token")
         }
@@ -187,12 +187,12 @@ class DeviceRepositoryTest : RepositoryTest() {
 
         assertEquals(
             now,
-            getProperty("devices", "last_seen_at", id) { instant(it) },
+            getProperty("devices", "last_seen_at", id) { instantOrNull(it) },
         )
     }
 
     @Test
-    fun `updateLastSeen throws for missing device`() {
+    fun `updateLastSeen throws for unknown device`() {
         assertThrows<NoSuchElementException> {
             repository.updateLastSeen(UUID.randomUUID(), now())
         }
@@ -208,7 +208,7 @@ class DeviceRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `delete throws for missing device`() {
+    fun `delete throws for unknown device`() {
         assertThrows<NoSuchElementException> {
             repository.delete(UUID.randomUUID())
         }

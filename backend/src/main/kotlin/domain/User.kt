@@ -5,8 +5,7 @@ import java.time.Instant
 import java.util.UUID
 import kotliquery.Row
 
-/** User class */
-class User(
+data class User(
     val id: UUID = UUID.randomUUID(),
     val name: String,
     val createdAt: Instant = now(),

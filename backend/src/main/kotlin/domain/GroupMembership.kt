@@ -1,10 +1,10 @@
 package dev.frammenti.fuckumeter.domain
 
-import kotliquery.Row
 import java.time.Instant
 import java.util.UUID
+import kotliquery.Row
 
-class GroupMembership(
+data class GroupMembership(
     val groupId: UUID,
     val name: String,
     val createdAt: Instant,

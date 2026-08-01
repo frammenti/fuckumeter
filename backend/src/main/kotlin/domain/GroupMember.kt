@@ -1,13 +1,9 @@
 package dev.frammenti.fuckumeter.domain
 
-import dev.frammenti.fuckumeter.dto.UUIDSerializer
-import kotlinx.serialization.Serializable
+import java.util.UUID
 import kotliquery.Row
 
-typealias UUID = @Serializable(with = UUIDSerializer::class) java.util.UUID
-
-@Serializable
-class GroupMember(
+data class GroupMember(
     val id: UUID,
     val displayName: String,
     val relationshipId: UUID?,

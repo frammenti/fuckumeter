@@ -7,7 +7,7 @@ import java.time.Instant
 import java.util.UUID
 import kotliquery.Row
 
-class Relationship(
+data class Relationship(
     val id: UUID,
     val userId: UUID,
     val partnerId: UUID,

@@ -1,11 +1,11 @@
 package dev.frammenti.fuckumeter.domain
 
 import dev.frammenti.fuckumeter.domain.Defaults.SHARE_RELATIONSHIPS
-import kotliquery.Row
 import java.time.Instant
 import java.util.UUID
+import kotliquery.Row
 
-class Membership(
+data class Membership(
     val id: UUID = UUID.randomUUID(),
     val userId: UUID,
     val groupId: UUID,

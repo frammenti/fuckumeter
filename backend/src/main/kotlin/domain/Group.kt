@@ -5,7 +5,7 @@ import java.time.Instant
 import java.util.UUID
 import kotliquery.Row
 
-class Group(
+data class Group(
     val id: UUID = UUID.randomUUID(),
     val name: String,
     val updatedBy: UUID?,

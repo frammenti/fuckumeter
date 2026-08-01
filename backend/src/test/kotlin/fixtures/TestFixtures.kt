@@ -39,17 +39,21 @@ object TestFixtures {
         id: UUID = UUID.randomUUID(),
         name: String = "Test user",
         createdAt: Instant = now(),
+        deactivatedAt: Instant? = null,
+        deletedAt: Instant? = null,
     ): UUID {
         database.session {
             update(
                 database.sql(
                     """
-                    INSERT INTO users (id, name, created_at)
-                    VALUES (:id, :name, :created_at);
+                    INSERT INTO users (id, name, created_at, deactivated_at, deleted_at)
+                    VALUES (:id, :name, :created_at, :deactivated_at, :deleted_at);
                     """,
                     "id" to id,
                     "name" to name,
                     "created_at" to createdAt,
+                    "deactivated_at" to deactivatedAt,
+                    "deleted_at" to deletedAt,
                 )
             )
         }
