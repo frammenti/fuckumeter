@@ -4,6 +4,7 @@ import dev.frammenti.fuckumeter.db.Database
 import dev.frammenti.fuckumeter.domain.Device
 import dev.frammenti.fuckumeter.extensions.expectOne
 import dev.frammenti.fuckumeter.security.HmacHasher
+import dev.frammenti.fuckumeter.shared.Time.now
 import java.time.Instant
 import java.util.UUID
 
@@ -73,8 +74,7 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
                 sql(
                     """
                     UPDATE devices
-                    SET name = :name,
-                        updated_at = now()
+                    SET name = :name
                     WHERE id = :id
                     """,
                     "id" to id,
@@ -89,8 +89,7 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
                 sql(
                     """
                     UPDATE devices
-                    SET notification_enabled = :notification_enabled,
-                        updated_at = now()
+                    SET notification_enabled = :notification_enabled
                     WHERE id = :id
                     """,
                     "id" to id,
@@ -135,7 +134,7 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
             .expectOne()
     }
 
-    fun updateLastSeen(id: UUID, time: Instant) = session {
+    fun updateLastSeen(id: UUID, time: Instant = now()) = session {
         update(
                 sql(
                     """

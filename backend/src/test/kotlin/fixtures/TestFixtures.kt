@@ -4,9 +4,36 @@ import dev.frammenti.fuckumeter.shared.Time.now
 import fixtures.TestCrypto.hasher
 import java.time.Instant
 import java.util.UUID
+import kotliquery.Row
 
 object TestFixtures {
     private val database = TestDatabase.database
+
+    fun <T> getProperty(
+        table: String,
+        column: String,
+        id: Any,
+        mapper: Row.(columnLabel: String) -> T,
+    ): T? = database.session {
+        single(
+            database.sql(
+                """
+                SELECT $column
+                FROM $table
+                WHERE id = :id
+                """,
+                "id" to id,
+            )
+        ) { row ->
+            row.mapper(column)
+        }
+    }
+
+    fun getProperty(
+        table: String,
+        column: String,
+        id: Any,
+    ): String? = getProperty(table, column, id) { string(it) }
 
     fun insertUser(
         id: UUID = UUID.randomUUID(),
