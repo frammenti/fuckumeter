@@ -4,9 +4,10 @@ import dev.frammenti.fuckumeter.db.Database
 import dev.frammenti.fuckumeter.domain.User
 import dev.frammenti.fuckumeter.extensions.expectOne
 import java.util.UUID
+import kotliquery.Row
 
 class UserRepository(database: Database) : Repository(database) {
-    private fun User.params() =
+    private fun User.toParams() =
         arrayOf(
             "id" to id,
             "name" to name,
@@ -14,6 +15,16 @@ class UserRepository(database: Database) : Repository(database) {
             "updated_at" to updatedAt,
             "deactivated_at" to deactivatedAt,
             "deleted_at" to deletedAt,
+        )
+
+    private fun Row.toUser(): User =
+        User(
+            uuid("id"),
+            string("name"),
+            instant("created_at"),
+            instantOrNull("updated_at"),
+            instantOrNull("deactivated_at"),
+            instantOrNull("deleted_at"),
         )
 
     fun find(id: UUID): User? = session {
@@ -25,9 +36,10 @@ class UserRepository(database: Database) : Repository(database) {
                 WHERE id = :id;
                 """,
                 "id" to id,
-            ),
-            ::User,
-        )
+            )
+        ) { row ->
+            row.toUser()
+        }
     }
 
     fun insert(user: User) = session {
@@ -37,7 +49,7 @@ class UserRepository(database: Database) : Repository(database) {
                     INSERT INTO users (id, name, created_at)
                     VALUES (:id, :name, :created_at);
                     """,
-                    *user.params(),
+                    *user.toParams(),
                 )
             )
             .expectOne()

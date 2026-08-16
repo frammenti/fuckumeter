@@ -7,10 +7,11 @@ import dev.frammenti.fuckumeter.security.HmacHasher
 import dev.frammenti.fuckumeter.shared.Time.now
 import java.time.Instant
 import java.util.UUID
+import kotliquery.Row
 
 class DeviceRepository(database: Database, private val hasher: HmacHasher) :
     Repository(database) {
-    private fun Device.params() =
+    private fun Device.toParams() =
         arrayOf(
             "id" to id,
             "user_id" to userId,
@@ -19,6 +20,17 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
             "fcm_token" to fcmToken,
             "created_at" to createdAt,
             "last_seen_at" to lastSeenAt,
+        )
+
+    private fun Row.toDevice() =
+        Device(
+            id = uuid("id"),
+            userId = uuid("user_id"),
+            name = string("name"),
+            notificationEnabled = boolean("notification_enabled"),
+            fcmToken = stringOrNull("fcm_token"),
+            createdAt = instant("created_at"),
+            lastSeenAt = instantOrNull("last_seen_at"),
         )
 
     fun find(id: UUID): Device? = session {
@@ -30,9 +42,10 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
                 WHERE id = :id;
                 """,
                 "id" to id,
-            ),
-            ::Device,
-        )
+            )
+        ) { row ->
+            row.toDevice()
+        }
     }
 
     fun findAllForUser(userId: UUID): List<Device> = session {
@@ -44,9 +57,27 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
                 WHERE user_id = :user_id;
                 """,
                 "user_id" to userId,
-            ),
-            ::Device,
-        )
+            )
+        ) { row ->
+            row.toDevice()
+        }
+    }
+
+    fun belongsToUser(deviceId: UUID, userId: UUID): Boolean = session {
+        single(
+            sql(
+                """
+                    SELECT 1
+                    FROM devices
+                    WHERE id = :id
+                      AND user_id = :user_id;
+                    """,
+                "id" to deviceId,
+                "user_id" to userId,
+            )
+        ) { row ->
+            row.int(1)
+        } == 1
     }
 
     fun insert(device: Device, refreshToken: String) = session {
@@ -63,7 +94,7 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
                     );
                     """,
                     "refresh_token_hash" to hasher.hash(refreshToken),
-                    *device.params(),
+                    *device.toParams(),
                 )
             )
             .expectOne()

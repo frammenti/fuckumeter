@@ -1,45 +1,57 @@
 package dev.frammenti.fuckumeter.domain
 
-import dev.frammenti.fuckumeter.domain.Defaults.GROUP_JOIN_EXPIRY
 import dev.frammenti.fuckumeter.domain.Defaults.INVITE_CODE_LENGTH
 import dev.frammenti.fuckumeter.domain.Defaults.INVITE_USER_EXPIRY
+import dev.frammenti.fuckumeter.domain.Defaults.JOIN_GROUP_EXPIRY
 import dev.frammenti.fuckumeter.domain.Defaults.LINK_DEVICE_EXPIRY
 import dev.frammenti.fuckumeter.domain.Defaults.RECOVERY_CODE_LENGTH
 import dev.frammenti.fuckumeter.domain.Defaults.RECOVERY_EXPIRY
 import dev.frammenti.fuckumeter.shared.Time.now
 import java.security.SecureRandom
 import java.time.Instant
+import java.time.temporal.TemporalAmount
 import java.util.UUID
-import kotliquery.Row
 
-sealed class Invite(
-    val createdBy: UUID,
-    val consumedBy: UUID? = null,
-    val createdAt: Instant,
-    val expiresAt: Instant,
-    val consumedAt: Instant? = null,
-    val revokedAt: Instant? = null,
-) {
+sealed class Invite(protected open val lifecycle: Lifecycle) {
     abstract val type: InviteType
+    open val code = { Code.generate(INVITE_CODE_LENGTH) }
 
-    lateinit var code: String
-        protected set
+    val createdBy: UUID
+        get() = lifecycle.createdBy
 
-    fun initializeCode(code: String) {
-        check(!::code.isInitialized)
-        this.code = code
+    val consumedBy: UUID?
+        get() = lifecycle.consumedBy
+
+    val createdAt: Instant
+        get() = lifecycle.createdAt
+
+    val expiresAt: Instant
+        get() = lifecycle.expiresAt
+
+    val consumedAt: Instant?
+        get() = lifecycle.consumedAt
+
+    val revokedAt: Instant?
+        get() = lifecycle.revokedAt
+
+    data class Lifecycle(
+        val createdBy: UUID,
+        val consumedBy: UUID? = null,
+        val createdAt: Instant,
+        val expiresAt: Instant,
+        val consumedAt: Instant? = null,
+        val revokedAt: Instant? = null,
+    ) {
+        constructor(
+            createdBy: UUID,
+            createdAt: Instant = now(),
+            expiry: TemporalAmount,
+        ) : this(
+            createdBy = createdBy,
+            createdAt = createdAt,
+            expiresAt = createdAt.plus(expiry),
+        )
     }
-
-    constructor(
-        row: Row
-    ) : this(
-        row.uuid("created_by_user_id"),
-        row.uuidOrNull("consumed_by_user_id"),
-        row.instant("created_at"),
-        row.instant("expires_at"),
-        row.instantOrNull("consumed_at"),
-        row.instantOrNull("revoked_at"),
-    )
 
     enum class InviteType {
         INVITE_USER,
@@ -56,6 +68,12 @@ sealed class Invite(
         REVOKED,
     }
 
+    enum class RedemptionStatus {
+        COMPLETED,
+        REQUIRES_USER,
+        REQUIRES_DEVICE,
+    }
+
     fun status(): InviteStatus {
         return when {
             this.consumedAt != null -> InviteStatus.CONSUMED
@@ -65,123 +83,97 @@ sealed class Invite(
         }
     }
 
-    class InviteUser : Invite {
-        override val type = InviteType.INVITE_USER
-        val groupId: UUID?
+    data class WithCode<out I : Invite>(
+        val invite: I,
+        val code: String = invite.code(),
+    )
+
+    typealias InviteWithCode = WithCode<Invite>
+
+    data class WithId<out I : Invite>(
+        val invite: I,
+        val id: Int,
+    )
+
+    typealias InviteWithId = WithId<Invite>
+
+    data class InviteUser(override val lifecycle: Lifecycle) :
+        Invite(lifecycle) {
+        override val type = Companion.type
 
         constructor(
-            createdBy: UUID,
-            code: String = Code.generate(),
-            groupId: UUID? = null,
-            createdAt: Instant = now(),
-            expiresAt: Instant = createdAt.plus(INVITE_USER_EXPIRY),
-        ) : super(
-            createdBy = createdBy,
-            createdAt = createdAt,
-            expiresAt = expiresAt,
-        ) {
-            this.code = code
-            this.groupId = groupId
-        }
+            createdBy: UUID
+        ) : this(Lifecycle(createdBy = createdBy, expiry = expiry))
 
-        constructor(row: Row) : super(row) {
-            this.groupId = row.uuidOrNull("group_id")
+        companion object {
+            val type = InviteType.INVITE_USER
+            val expiry = INVITE_USER_EXPIRY
         }
     }
 
-    class JoinGroup : Invite {
-        override val type = InviteType.JOIN_GROUP
-        val groupId: UUID
+    data class JoinGroup(
+        val groupId: UUID,
+        override val lifecycle: Lifecycle,
+    ) : Invite(lifecycle) {
+        override val type = Companion.type
 
         constructor(
             createdBy: UUID,
-            code: String = Code.generate(),
             groupId: UUID,
-            createdAt: Instant = now(),
-            expiresAt: Instant = createdAt.plus(GROUP_JOIN_EXPIRY),
-        ) : super(
-            createdBy = createdBy,
-            createdAt = createdAt,
-            expiresAt = expiresAt,
-        ) {
-            this.code = code
-            this.groupId = groupId
-        }
+        ) : this(groupId, Lifecycle(createdBy = createdBy, expiry = expiry))
 
-        constructor(row: Row) : super(row) {
-            groupId = row.uuid("group_id")
+        companion object {
+            val type = InviteType.JOIN_GROUP
+            val expiry = JOIN_GROUP_EXPIRY
         }
     }
 
-    class LinkDevice : Invite {
-        override val type = InviteType.LINK_DEVICE
-        val deviceName: String
+    data class LinkDevice(override val lifecycle: Lifecycle) :
+        Invite(lifecycle) {
+        override val type = Companion.type
 
         constructor(
-            createdBy: UUID,
-            code: String = Code.generate(),
-            deviceName: String,
-            createdAt: Instant = now(),
-            expiresAt: Instant = createdAt.plus(LINK_DEVICE_EXPIRY),
-        ) : super(
-            createdBy = createdBy,
-            createdAt = createdAt,
-            expiresAt = expiresAt,
-        ) {
-            this.code = code
-            this.deviceName = deviceName
-        }
+            createdBy: UUID
+        ) : this(Lifecycle(createdBy = createdBy, expiry = expiry))
 
-        constructor(row: Row) : super(row) {
-            deviceName = row.string("device_name")
+        companion object {
+            val type = InviteType.LINK_DEVICE
+            val expiry = LINK_DEVICE_EXPIRY
         }
     }
 
-    class Recovery : Invite {
-        override val type = InviteType.RECOVERY
-        val recoveryRequestId: Int
+    data class Recovery(
+        val recoveryRequestId: Int,
+        override val lifecycle: Lifecycle,
+    ) : Invite(lifecycle) {
+        override val type = Companion.type
+        override val code = { Code.generate(RECOVERY_CODE_LENGTH) }
 
         constructor(
             createdBy: UUID,
-            code: String = Code.generate(RECOVERY_CODE_LENGTH),
             recoveryRequestId: Int,
-            createdAt: Instant = now(),
-            expiresAt: Instant = createdAt.plus(RECOVERY_EXPIRY),
-        ) : super(
-            createdBy = createdBy,
-            createdAt = createdAt,
-            expiresAt = expiresAt,
-        ) {
-            this.code = code
-            this.recoveryRequestId = recoveryRequestId
-        }
+        ) : this(
+            recoveryRequestId,
+            Lifecycle(createdBy = createdBy, expiry = expiry),
+        )
 
-        constructor(row: Row) : super(row) {
-            recoveryRequestId = row.int("recovery_request_id")
+        companion object {
+            val type = InviteType.RECOVERY
+            val expiry = RECOVERY_EXPIRY
         }
     }
 
     private object Code {
-        // Excludes 0/O, 1/I/L to avoid ambiguity when read aloud or handwritten
+        // Excludes 0/O, 1/I/L to avoid ambiguity when copied manually
         private const val ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
         private val random = SecureRandom()
 
-        fun generate(length: Int = INVITE_CODE_LENGTH): String {
+        fun generate(length: Int): String {
             val sb = StringBuilder(length)
             repeat(length) {
                 sb.append(ALPHABET[random.nextInt(ALPHABET.length)])
             }
             return sb.toString()
         }
-    }
-
-    companion object {
-        infix fun factory(row: Row): Invite =
-            when (InviteType.valueOf(row.string("type"))) {
-                InviteType.INVITE_USER -> InviteUser(row)
-                InviteType.JOIN_GROUP -> JoinGroup(row)
-                InviteType.LINK_DEVICE -> LinkDevice(row)
-                InviteType.RECOVERY -> Recovery(row)
-            }
     }
 }

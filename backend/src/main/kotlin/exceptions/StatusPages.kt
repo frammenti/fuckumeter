@@ -35,7 +35,7 @@ fun Application.configureStatusPages() {
         }
 
         status(HttpStatusCode.NotFound) { call, status ->
-            call.error(NotFoundException())
+            call.error(ResourceNotFoundException())
         }
     }
 }

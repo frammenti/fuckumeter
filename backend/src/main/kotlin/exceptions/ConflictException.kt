@@ -3,7 +3,7 @@ package dev.frammenti.fuckumeter.exceptions
 import io.ktor.http.HttpStatusCode
 
 sealed class ConflictException(
-    code: String,
+    code: String = "conflict",
     message: String = "Conflict",
 ) : ApiException(HttpStatusCode.Conflict, code, message)
 

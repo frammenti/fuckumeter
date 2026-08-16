@@ -3,7 +3,7 @@ package dev.frammenti.fuckumeter.exceptions
 import io.ktor.http.HttpStatusCode
 
 sealed class ValidationException(
-    code: String,
+    code: String = "bad_request",
     message: String = "Bad Request",
 ) : ApiException(HttpStatusCode.BadRequest, code, message)
 

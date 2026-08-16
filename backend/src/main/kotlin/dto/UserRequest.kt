@@ -3,4 +3,7 @@ package dev.frammenti.fuckumeter.dto
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class RefreshTokenRequest(val deviceId: UUID, val refreshToken: String)
+data class UserRequest(
+    val name: String,
+    val deviceName: String,
+)

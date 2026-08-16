@@ -3,7 +3,6 @@ package dev.frammenti.fuckumeter.domain
 import dev.frammenti.fuckumeter.shared.Time.now
 import java.time.Instant
 import java.util.UUID
-import kotliquery.Row
 
 data class User(
     val id: UUID = UUID.randomUUID(),
@@ -13,14 +12,17 @@ data class User(
     val deactivatedAt: Instant? = null,
     val deletedAt: Instant? = null,
 ) {
-    constructor(
-        row: Row
-    ) : this(
-        row.uuid("id"),
-        row.string("name"),
-        row.instant("created_at"),
-        row.instantOrNull("updated_at"),
-        row.instantOrNull("deactivated_at"),
-        row.instantOrNull("deleted_at"),
-    )
+    enum class UserStatus {
+        ACTIVE,
+        DEACTIVATED,
+        DELETED,
+    }
+
+    fun status(): UserStatus {
+        return when {
+            this.deletedAt != null -> UserStatus.DELETED
+            this.deactivatedAt != null -> UserStatus.DEACTIVATED
+            else -> UserStatus.ACTIVE
+        }
+    }
 }

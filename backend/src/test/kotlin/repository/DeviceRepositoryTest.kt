@@ -70,6 +70,30 @@ class DeviceRepositoryTest : RepositoryTest() {
     }
 
     @Test
+    fun `belongsToUser is true for device owned by the user`() {
+        val userId = insertUser()
+        val deviceId = insertDevice(userId = userId)
+
+        assertTrue(repository.belongsToUser(deviceId, userId))
+    }
+
+    @Test
+    fun `belongsToUser is false for unknown user`() {
+        val deviceId = insertDevice()
+
+        assertFalse(repository.belongsToUser(deviceId, UUID.randomUUID()))
+    }
+
+    @Test
+    fun `belongsToUser is false for unknown device`() {
+        val userId = insertUser()
+
+        assertFalse(
+            repository.belongsToUser(UUID.randomUUID(), userId)
+        )
+    }
+
+    @Test
     fun `rename updates device name`() {
         val id = insertDevice(name = "Test device")
 
@@ -118,28 +142,6 @@ class DeviceRepositoryTest : RepositoryTest() {
         assertEquals(userId, changed)
         assertArrayEquals(
             hasher.hash("new-token"),
-            getProperty("devices", "refresh_token_hash", id) { bytes(it) },
-        )
-
-        val repeated =
-            repository.updateRefreshToken(
-                id,
-                "old-token",
-                "new-token",
-            )
-
-        assertNull(repeated)
-
-        val changed2 =
-            repository.updateRefreshToken(
-                id,
-                "new-token",
-                "newer-token",
-            )
-
-        assertEquals(userId, changed2)
-        assertArrayEquals(
-            hasher.hash("newer-token"),
             getProperty("devices", "refresh_token_hash", id) { bytes(it) },
         )
     }

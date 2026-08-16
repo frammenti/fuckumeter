@@ -4,18 +4,12 @@ import dev.frammenti.fuckumeter.auth.JwtConfig
 import dev.frammenti.fuckumeter.auth.TokenProvider
 import dev.frammenti.fuckumeter.db.Database
 import dev.frammenti.fuckumeter.db.DatabaseConfig
-import dev.frammenti.fuckumeter.repository.DeviceRepository
-import dev.frammenti.fuckumeter.repository.GroupRepository
-import dev.frammenti.fuckumeter.repository.InviteRepository
-import dev.frammenti.fuckumeter.repository.UserRepository
+import dev.frammenti.fuckumeter.repository.*
 import dev.frammenti.fuckumeter.routing.configureRouting
 import dev.frammenti.fuckumeter.security.AesGcmCipher
 import dev.frammenti.fuckumeter.security.HmacHasher
 import dev.frammenti.fuckumeter.security.SecurityConfig
-import dev.frammenti.fuckumeter.service.DeviceService
-import dev.frammenti.fuckumeter.service.GroupService
-import dev.frammenti.fuckumeter.service.InviteService
-import dev.frammenti.fuckumeter.service.UserService
+import dev.frammenti.fuckumeter.service.*
 import io.ktor.server.application.Application
 import io.ktor.server.netty.EngineMain
 
@@ -39,13 +33,28 @@ fun Application.module() {
     val groupRepository = GroupRepository(database)
     val inviteRepository =
         InviteRepository(database, inviteHasher, inviteCipher)
+    val relationshipRepository = RelationshipRepository(database)
     val userRepository = UserRepository(database)
 
     val deviceService = DeviceService(deviceRepository, tokenProvider)
     val groupService = GroupService(groupRepository)
-    val inviteService = InviteService(inviteRepository)
+    val relationshipService = RelationshipService(relationshipRepository)
     val userService =
         UserService(userRepository, deviceRepository, tokenProvider)
+    val inviteService =
+        InviteService(
+            inviteRepository,
+            userService,
+            deviceService,
+            groupService,
+            relationshipService,
+        )
 
-    configureRouting(deviceService, groupService, inviteService, userService)
+    configureRouting(
+        deviceService,
+        groupService,
+        inviteService,
+        relationshipService,
+        userService,
+    )
 }

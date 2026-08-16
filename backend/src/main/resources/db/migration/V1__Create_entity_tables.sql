@@ -139,28 +139,20 @@ CREATE TABLE invites (
     type                invite_type NOT NULL
                                     CHECK (
                                         CASE type
-                                            WHEN 'INVITE_USER'
-                                                THEN device_name IS NULL
+                                            WHEN 'INVITE_USER' OR 'LINK_DEVICE'
+                                                THEN group_id IS NULL
                                                 AND recovery_request_id IS NULL
 
                                             WHEN 'JOIN_GROUP'
                                                 THEN group_id IS NOT NULL
-                                                AND device_name IS NULL
-                                                AND recovery_request_id IS NULL
-
-                                            WHEN 'LINK_DEVICE'
-                                                THEN group_id IS NULL
-                                                AND device_name IS NOT NULL
                                                 AND recovery_request_id IS NULL
 
                                             WHEN 'RECOVERY'
                                                 THEN group_id IS NULL
-                                                AND device_name IS NULL
                                                 AND recovery_request_id IS NOT NULL
                                             END
                                     ),
     group_id            uuid,
-    device_name         text,
     recovery_request_id bigint,
     created_at          timestamptz NOT NULL DEFAULT now(),
     expires_at          timestamptz NOT NULL,
@@ -170,11 +162,39 @@ CREATE TABLE invites (
 
 CREATE INDEX invites_created_by_user_id_idx ON invites (created_by_user_id);
 
--- Single invite per group
-CREATE INDEX invites_group_id_idx ON invites (group_id);
-
 -- For cleanup jobs
 CREATE INDEX invites_expires_at_idx ON invites (expires_at);
+
+CREATE VIEW active_invites AS
+    SELECT *
+    FROM invites
+    WHERE revoked_at IS NULL
+      AND consumed_at IS NULL
+      AND expires_at > now();
+
+-- There is at most one active invite, older ones are revoked
+CREATE FUNCTION revoke_previous_invite()
+    RETURNS TRIGGER
+    LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE invites
+    SET revoked_at = now()
+    WHERE created_by_user_id = NEW.created_by_user_id
+      AND type = NEW.type
+      AND group_id = NEW.group_id
+      AND revoked_at IS NULL
+      AND consumed_at IS NULL
+      AND expires_at > now();
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER revoke_previous_invite
+    AFTER INSERT ON invites
+    FOR EACH ROW
+EXECUTE FUNCTION revoke_previous_invite();
 
 -- ---------------------------------------------------------------------------
 -- Recovery requests

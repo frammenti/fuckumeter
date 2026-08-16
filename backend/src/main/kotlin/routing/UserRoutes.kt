@@ -1,6 +1,6 @@
 package dev.frammenti.fuckumeter.routing
 
-import dev.frammenti.fuckumeter.dto.UsersRequest
+import dev.frammenti.fuckumeter.dto.UserRequest
 import dev.frammenti.fuckumeter.extensions.requireAnonymous
 import dev.frammenti.fuckumeter.service.UserService
 import io.ktor.http.HttpStatusCode
@@ -16,8 +16,8 @@ fun Routing.userRoutes(service: UserService) {
         post("/users") {
             call.requireAnonymous()
 
-            val request = call.receive<UsersRequest>()
-            val response = service.new(request.name, request.deviceName)
+            val request = call.receive<UserRequest>()
+            val response = service.create(request.name, request.deviceName)
 
             call.respond(HttpStatusCode.Created, response)
         }

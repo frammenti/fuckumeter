@@ -3,19 +3,27 @@ package dev.frammenti.fuckumeter.service
 import dev.frammenti.fuckumeter.auth.TokenProvider
 import dev.frammenti.fuckumeter.domain.Device
 import dev.frammenti.fuckumeter.domain.User
-import dev.frammenti.fuckumeter.dto.UsersResponse
+import dev.frammenti.fuckumeter.dto.CredentialsResponse
+import dev.frammenti.fuckumeter.dto.UserResponse
+import dev.frammenti.fuckumeter.exceptions.ResourceNotFoundException
 import dev.frammenti.fuckumeter.repository.DeviceRepository
 import dev.frammenti.fuckumeter.repository.UserRepository
+import java.util.UUID
 
 class UserService(
     private val users: UserRepository,
     private val devices: DeviceRepository,
     private val tokens: TokenProvider,
 ) {
-    fun new(
+    fun get(id: UUID): UserResponse {
+        val user = users.find(id) ?: throw ResourceNotFoundException("user")
+        return UserResponse(user.id, user.name, user.status())
+    }
+
+    fun create(
         name: String,
         deviceName: String,
-    ): UsersResponse {
+    ): CredentialsResponse {
 
         val user = User(name = name)
         val device =
@@ -30,12 +38,10 @@ class UserService(
             devices.insert(device, refreshToken)
         }
 
-        val token = tokens.accessToken(user.id, device.id)
-
-        return UsersResponse(
+        return CredentialsResponse(
             user.id,
             device.id,
-            token,
+            tokens.accessToken(user.id, device.id),
             refreshToken,
         )
     }

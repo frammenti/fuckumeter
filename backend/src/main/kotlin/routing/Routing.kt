@@ -3,6 +3,7 @@ package dev.frammenti.fuckumeter.routing
 import dev.frammenti.fuckumeter.service.DeviceService
 import dev.frammenti.fuckumeter.service.GroupService
 import dev.frammenti.fuckumeter.service.InviteService
+import dev.frammenti.fuckumeter.service.RelationshipService
 import dev.frammenti.fuckumeter.service.UserService
 import io.ktor.server.application.Application
 import io.ktor.server.response.respondText
@@ -13,6 +14,7 @@ fun Application.configureRouting(
     deviceService: DeviceService,
     groupService: GroupService,
     inviteService: InviteService,
+    relationshipService: RelationshipService,
     userService: UserService,
 ) {
     routing {
@@ -23,6 +25,7 @@ fun Application.configureRouting(
         deviceRoutes(deviceService)
         groupRoutes(groupService)
         inviteRoutes(inviteService)
+        relationshipRoutes(relationshipService)
         userRoutes(userService)
     }
 }

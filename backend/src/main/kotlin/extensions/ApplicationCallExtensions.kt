@@ -10,11 +10,12 @@ import io.ktor.server.auth.principal
 import io.ktor.server.response.respond
 import java.util.UUID
 
+fun ApplicationCall.requireParameter(parameter: String): String =
+    parameters[parameter] ?: throw MissingParameterException(parameter)
+
 fun ApplicationCall.requireUUID(parameter: String): UUID =
     try {
-        UUID.fromString(
-            parameters[parameter] ?: throw MissingParameterException(parameter)
-        )
+        UUID.fromString(requireParameter(parameter))
     } catch (_: IllegalArgumentException) {
         throw InvalidParameterException(parameter, "UUID")
     }

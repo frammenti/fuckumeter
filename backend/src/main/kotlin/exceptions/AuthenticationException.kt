@@ -3,7 +3,7 @@ package dev.frammenti.fuckumeter.exceptions
 import io.ktor.http.HttpStatusCode
 
 sealed class AuthenticationException(
-    code: String,
+    code: String = "unauthorized",
     message: String = "Unauthorized",
 ) : ApiException(HttpStatusCode.Unauthorized, code, message)
 
