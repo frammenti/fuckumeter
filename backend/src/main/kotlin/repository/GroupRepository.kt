@@ -3,7 +3,6 @@ package dev.frammenti.fuckumeter.repository
 import dev.frammenti.fuckumeter.db.Database
 import dev.frammenti.fuckumeter.domain.Group
 import dev.frammenti.fuckumeter.domain.Membership
-import dev.frammenti.fuckumeter.extensions.expectNotNull
 import dev.frammenti.fuckumeter.extensions.expectOne
 import dev.frammenti.fuckumeter.view.GroupMember
 import dev.frammenti.fuckumeter.view.GroupMembership
@@ -52,8 +51,7 @@ class GroupRepository(database: Database) : Repository(database) {
             uuid("id"),
             string("name"),
             instant("created_at"),
-            instantOrNull("joined_at"),
-            instantOrNull("left_at"),
+            instant("joined_at"),
             boolean("share_relationships"),
         )
 
@@ -65,7 +63,7 @@ class GroupRepository(database: Database) : Repository(database) {
             boolean("user_active"),
         )
 
-    fun find(id: UUID): Group? = session {
+    suspend fun find(id: UUID): Group? = session {
         single(
             sql(
                 """
@@ -80,15 +78,39 @@ class GroupRepository(database: Database) : Repository(database) {
         }
     }
 
-    fun findAllForUser(userId: UUID): List<GroupMembership> = session {
+    suspend fun findForUser(groupId: UUID, userId: UUID): GroupMembership? =
+        session {
+            single(
+                sql(
+                    """
+                SELECT g.id, g.name, g.created_at,
+                       m.joined_at, m.share_relationships,
+                FROM memberships m JOIN groups g
+                ON m.group_id = g.id
+                WHERE g.id = :group_id
+                  AND m.user_id = :user_id
+                  AND m.joined_at IS NOT NULL
+                  AND m.left_at IS NULL;
+                """,
+                    "group_id" to groupId,
+                    "user_id" to userId,
+                )
+            ) { row ->
+                row.toGroupMembership()
+            }
+        }
+
+    suspend fun findAllForUser(userId: UUID): List<GroupMembership> = session {
         list(
             sql(
                 """
-                SELECT g.id, g.name, m.share_relationships,
-                       g.created_at, m.joined_at, m.left_at
+                SELECT g.id, g.name, g.created_at,
+                       m.joined_at, m.share_relationships,
                 FROM memberships m JOIN groups g
                 ON m.group_id = g.id
-                WHERE m.user_id = :user_id;
+                WHERE m.user_id = :user_id
+                  AND m.joined_at IS NOT NULL
+                  AND m.left_at IS NULL;
                 """,
                 "user_id" to userId,
             )
@@ -98,11 +120,13 @@ class GroupRepository(database: Database) : Repository(database) {
     }
 
     // TODO: Add a way to mark pending direct invites
-    fun findMembersForUser(userId: UUID, groupId: UUID): List<GroupMember> =
-        session {
-            list(
-                sql(
-                    """
+    suspend fun findMembersForUser(
+        groupId: UUID,
+        userId: UUID,
+    ): List<GroupMember> = session {
+        list(
+            sql(
+                """
                     SELECT
                         u.id,
                         COALESCE(r.nickname, u.name) AS display_name,
@@ -121,15 +145,34 @@ class GroupRepository(database: Database) : Repository(database) {
                         AND m.joined_at IS NOT NULL
                         AND m.left_at IS NULL;
                     """,
-                    "user_id" to userId,
-                    "group_id" to groupId,
-                )
-            ) { row ->
-                row.toGroupMember()
-            }
+                "user_id" to userId,
+                "group_id" to groupId,
+            )
+        ) { row ->
+            row.toGroupMember()
         }
+    }
 
-    fun insert(group: Group) = session {
+    suspend fun isMember(userId: UUID, groupId: UUID): Boolean = session {
+        single(
+            sql(
+                """
+                    SELECT 1
+                    FROM memberships
+                    WHERE user_id = :user_id
+                      AND group_id = :group_id
+                      AND joined_at IS NOT NULL
+                      AND left_at IS NULL;
+                    """,
+                "user_id" to userId,
+                "group_id" to groupId,
+            )
+        ) { row ->
+            row.int(1)
+        } == 1
+    }
+
+    suspend fun insert(group: Group) = session {
         update(
                 sql(
                     """
@@ -142,7 +185,7 @@ class GroupRepository(database: Database) : Repository(database) {
             .expectOne()
     }
 
-    fun rename(id: UUID, name: String, userId: UUID) = session {
+    suspend fun rename(id: UUID, name: String, userId: UUID) = session {
         update(
                 sql(
                     """
@@ -160,7 +203,7 @@ class GroupRepository(database: Database) : Repository(database) {
             .expectOne()
     }
 
-    fun join(membership: Membership) = session {
+    suspend fun join(membership: Membership) = session {
         update(
                 sql(
                     """
@@ -179,7 +222,7 @@ class GroupRepository(database: Database) : Repository(database) {
             .expectOne()
     }
 
-    fun leave(userId: UUID, groupId: UUID) = session {
+    suspend fun leave(userId: UUID, groupId: UUID) = session {
         update(
                 sql(
                     """

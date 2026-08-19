@@ -33,7 +33,7 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
             lastSeenAt = instantOrNull("last_seen_at"),
         )
 
-    fun find(id: UUID): Device? = session {
+    suspend fun find(id: UUID): Device? = session {
         single(
             sql(
                 """
@@ -48,7 +48,7 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
         }
     }
 
-    fun findAllForUser(userId: UUID): List<Device> = session {
+    suspend fun findAllForUser(userId: UUID): List<Device> = session {
         list(
             sql(
                 """
@@ -63,7 +63,7 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
         }
     }
 
-    fun belongsToUser(deviceId: UUID, userId: UUID): Boolean = session {
+    suspend fun belongsToUser(deviceId: UUID, userId: UUID): Boolean = session {
         single(
             sql(
                 """
@@ -80,7 +80,7 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
         } == 1
     }
 
-    fun insert(device: Device, refreshToken: String) = session {
+    suspend fun insert(device: Device, refreshToken: String) = session {
         update(
                 sql(
                     """
@@ -100,7 +100,7 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
             .expectOne()
     }
 
-    fun rename(id: UUID, name: String) = session {
+    suspend fun rename(id: UUID, name: String) = session {
         update(
                 sql(
                     """
@@ -115,7 +115,7 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
             .expectOne()
     }
 
-    fun enableNotification(id: UUID, enable: Boolean) = session {
+    suspend fun enableNotification(id: UUID, enable: Boolean) = session {
         update(
                 sql(
                     """
@@ -130,27 +130,30 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
             .expectOne()
     }
 
-    fun updateRefreshToken(id: UUID, oldToken: String, newToken: String) =
-        session {
-            single(
-                sql(
-                    """
+    suspend fun updateRefreshToken(
+        id: UUID,
+        oldToken: String,
+        newToken: String,
+    ) = session {
+        single(
+            sql(
+                """
                     UPDATE devices
                     SET refresh_token_hash = :newHash
                     WHERE id = :id
                       AND refresh_token_hash = :oldHash
                     RETURNING user_id;
                     """,
-                    "id" to id,
-                    "oldHash" to hasher.hash(oldToken),
-                    "newHash" to hasher.hash(newToken),
-                )
-            ) { row ->
-                row.uuid("user_id")
-            }
+                "id" to id,
+                "oldHash" to hasher.hash(oldToken),
+                "newHash" to hasher.hash(newToken),
+            )
+        ) { row ->
+            row.uuid("user_id")
         }
+    }
 
-    fun updateFcmToken(id: UUID, token: String) = session {
+    suspend fun updateFcmToken(id: UUID, token: String) = session {
         update(
                 sql(
                     """
@@ -165,7 +168,7 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
             .expectOne()
     }
 
-    fun updateLastSeen(id: UUID, time: Instant = now()) = session {
+    suspend fun updateLastSeen(id: UUID, time: Instant = now()) = session {
         update(
                 sql(
                     """
@@ -180,7 +183,7 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
             .expectOne()
     }
 
-    fun delete(id: UUID) = session {
+    suspend fun delete(id: UUID) = session {
         update(sql("DELETE FROM devices WHERE id = :id", "id" to id))
             .expectOne()
     }

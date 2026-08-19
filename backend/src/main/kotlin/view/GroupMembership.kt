@@ -8,7 +8,6 @@ data class GroupMembership(
     val groupId: UUID,
     val name: String,
     val createdAt: Instant,
-    val joinedAt: Instant?,
-    val leftAt: Instant?,
+    val joinedAt: Instant,
     val shareRelationships: Boolean,
 )

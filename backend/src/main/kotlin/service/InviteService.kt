@@ -7,6 +7,7 @@ import dev.frammenti.fuckumeter.domain.User.UserStatus
 import dev.frammenti.fuckumeter.dto.InviteResponse
 import dev.frammenti.fuckumeter.dto.RedemptionResponse
 import dev.frammenti.fuckumeter.dto.RedemptionResponse.*
+import dev.frammenti.fuckumeter.dto.UserResponse
 import dev.frammenti.fuckumeter.exceptions.AlreadyAuthenticatedException
 import dev.frammenti.fuckumeter.exceptions.InvalidCodeException
 import dev.frammenti.fuckumeter.exceptions.ResourceNotFoundException
@@ -21,7 +22,7 @@ class InviteService(
     private val groupService: GroupService,
     private val relationshipService: RelationshipService,
 ) {
-    private fun <I : Invite> createInvite(
+    private suspend fun <I : Invite> createInvite(
         userId: UUID,
         factory: () -> I,
     ): InviteResponse {
@@ -51,12 +52,12 @@ class InviteService(
         )
     }
 
-    fun inviteUser(userId: UUID) =
+    suspend fun inviteUser(userId: UUID) =
         createInvite(userId) {
             InviteUser(createdBy = userId)
         }
 
-    fun joinGroup(userId: UUID, groupId: UUID) =
+    suspend fun joinGroup(userId: UUID, groupId: UUID) =
         createInvite(userId) {
             JoinGroup(
                 createdBy = userId,
@@ -64,12 +65,12 @@ class InviteService(
             )
         }
 
-    fun linkDevice(userId: UUID) =
+    suspend fun linkDevice(userId: UUID) =
         createInvite(userId) {
             LinkDevice(createdBy = userId)
         }
 
-    fun recovery(
+    suspend fun recovery(
         userId: UUID,
         recoveryRequestId:
             Int, // it always gets called after checking the recovery request
@@ -78,13 +79,14 @@ class InviteService(
             Recovery(createdBy = userId, recoveryRequestId = recoveryRequestId)
         }
 
-    fun redeem(
-        code: String,
-        principal: UserDevicePrincipal?,
-        username: String?,
-        deviceName: String?,
-    ): RedemptionResponse {
-        // Validation with opaque response
+    // Redemption
+    private data class ValidInvite<out I : Invite>(
+        val invite: I,
+        val id: Int,
+        val creator: UserResponse,
+    )
+
+    private suspend fun validate(code: String): ValidInvite<Invite> {
         val (invite, id) =
             invites.findByCode(code) ?: throw InvalidCodeException()
         if (invite.status() != InviteStatus.ACTIVE) throw InvalidCodeException()
@@ -97,96 +99,153 @@ class InviteService(
             }
         if (creator.status != UserStatus.ACTIVE) throw InvalidCodeException()
 
-        when (invite) {
-            is LinkDevice -> {
-                if (principal != null) throw AlreadyAuthenticatedException()
+        return ValidInvite(invite, id, creator)
+    }
 
-                if (deviceName == null)
-                    return PendingLinkDeviceRedemptionResponse(creator.name)
+    private fun requireAnonymous(principal: UserDevicePrincipal?) {
+        if (principal != null) throw AlreadyAuthenticatedException()
+    }
 
-                val credentials = deviceService.create(creator.id, deviceName)
+    private suspend fun redeemLinkDevice(
+        id: Int,
+        principal: UserDevicePrincipal?,
+        creator: UserResponse,
+        deviceName: String?,
+    ): RedemptionResponse {
+        requireAnonymous(principal)
 
-                invites.consume(id, creator.id)
-                return LinkDeviceRedemptionResponse(creator.name, credentials)
+        if (deviceName == null)
+            return PendingLinkDeviceRedemptionResponse(creator.name)
+
+        val credentials = deviceService.create(creator.id, deviceName)
+
+        invites.consume(id, creator.id)
+        return LinkDeviceRedemptionResponse(creator.name, credentials)
+    }
+
+    private suspend fun redeemRecovery(
+        id: Int,
+        principal: UserDevicePrincipal?,
+        requestId: Int,
+        deviceName: String?,
+    ): RedemptionResponse {
+        requireAnonymous(principal)
+
+        val userId =
+            invites.findRecoveryTarget(requestId)
+                ?: throw InvalidCodeException()
+
+        val user =
+            try {
+                userService.get(userId)
+            } catch (_: ResourceNotFoundException) {
+                throw InvalidCodeException()
             }
 
-            is Recovery -> {
-                if (principal != null) throw AlreadyAuthenticatedException()
+        if (deviceName == null)
+            return PendingRecoveryRedemptionResponse(user.name)
 
-                val userId =
-                    invites.findRecoveryTarget(invite.recoveryRequestId)
-                        ?: throw InvalidCodeException()
+        val credentials = deviceService.create(user.id, deviceName)
 
-                val user =
-                    try {
-                        userService.get(userId)
-                    } catch (_: ResourceNotFoundException) {
-                        throw InvalidCodeException()
-                    }
+        invites.consume(id, user.id)
+        return RecoveryRedemptionResponse(user.name, credentials)
+    }
 
-                if (deviceName == null)
-                    return PendingRecoveryRedemptionResponse(user.name)
+    private suspend fun redeemInviteUser(
+        id: Int,
+        principal: UserDevicePrincipal?,
+        creator: UserResponse,
+        username: String?,
+        deviceName: String?,
+    ): RedemptionResponse {
+        val credentials =
+            if (principal == null) {
+                if (username == null || deviceName == null)
+                    return PendingInviteUserRedemptionResponse(
+                        partnerName = creator.name
+                    )
+                userService.create(username, deviceName)
+            } else null
 
-                val credentials = deviceService.create(user.id, deviceName)
+        val userId = principal?.userId ?: credentials!!.userId
 
-                invites.consume(id, user.id)
-                return RecoveryRedemptionResponse(user.name, credentials)
+        val (relationshipId) =
+            relationshipService.createPair(userId to creator.id)
+
+        invites.consume(id, userId)
+        return InviteUserRedemptionResponse(
+            creator.name,
+            relationshipId,
+            credentials,
+        )
+    }
+
+    private suspend fun redeemJoinGroup(
+        id: Int,
+        principal: UserDevicePrincipal?,
+        creator: UserResponse,
+        groupId: UUID,
+        username: String?,
+        deviceName: String?,
+    ): RedemptionResponse {
+        val groupName =
+            try {
+                groupService.getName(groupId, creator.id)
+            } catch (_: ResourceNotFoundException) {
+                throw InvalidCodeException()
             }
 
-            is InviteUser -> {
-                val credentials =
-                    if (principal == null) {
-                        if (username == null || deviceName == null)
-                            return PendingInviteUserRedemptionResponse(
-                                partnerName = creator.name
-                            )
-                        userService.create(username, deviceName)
-                    } else null
+        if (principal == null && (username == null || deviceName == null))
+            return PendingJoinGroupRedemptionResponse(groupName)
 
-                val userId = principal?.userId ?: credentials!!.userId
+        return invites.transaction {
+            val credentials =
+                if (principal == null) {
+                    userService.create(username!!, deviceName!!)
+                } else null
 
-                val (relationshipId) =
-                    relationshipService.createPair(Pair(userId, creator.id))
+            val userId = principal?.userId ?: credentials!!.userId
 
-                invites.consume(id, userId)
-                return InviteUserRedemptionResponse(
-                    creator.name,
-                    relationshipId,
-                    credentials,
+            groupService.addMember(userId, groupId)
+            invites.consume(id, userId)
+
+            return@transaction JoinGroupRedemptionResponse(
+                groupName,
+                groupId,
+                credentials,
+            )
+        }
+    }
+
+    suspend fun redeem(
+        code: String,
+        principal: UserDevicePrincipal?,
+        username: String?,
+        deviceName: String?,
+    ): RedemptionResponse {
+        val (invite, id, creator) = validate(code)
+
+        return when (invite) {
+            is LinkDevice ->
+                redeemLinkDevice(id, principal, creator, deviceName)
+            is Recovery ->
+                redeemRecovery(
+                    id,
+                    principal,
+                    invite.recoveryRequestId,
+                    deviceName,
                 )
-            }
-
-            is JoinGroup -> {
-                val group =
-                    try {
-                        groupService.get(invite.groupId)
-                    } catch (_: ResourceNotFoundException) {
-                        throw InvalidCodeException()
-                    }
-
-                // TODO: Check if creator.id is among group members?
-                // Get could return the members userId list as well
-
-                val credentials =
-                    if (principal == null) {
-                        if (username == null || deviceName == null)
-                            return PendingJoinGroupRedemptionResponse(
-                                groupName = group.name
-                            )
-                        userService.create(username, deviceName)
-                    } else null
-
-                val userId = principal?.userId ?: credentials!!.userId
-
-                groupService.addMember(userId, group.id)
-
-                invites.consume(id, userId)
-                return JoinGroupRedemptionResponse(
-                    group.name,
-                    group.id,
-                    credentials,
+            is InviteUser ->
+                redeemInviteUser(id, principal, creator, username, deviceName)
+            is JoinGroup ->
+                redeemJoinGroup(
+                    id,
+                    principal,
+                    creator,
+                    invite.groupId,
+                    username,
+                    deviceName,
                 )
-            }
         }
     }
 }

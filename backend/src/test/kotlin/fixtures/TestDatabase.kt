@@ -5,7 +5,7 @@ import dev.frammenti.fuckumeter.db.Database
 object TestDatabase {
     val database = Database()
 
-    fun truncate() {
+    suspend fun truncate() {
         database.session {
             update(
                 database.sql(

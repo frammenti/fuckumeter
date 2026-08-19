@@ -14,7 +14,7 @@ fun Routing.relationshipRoutes(service: RelationshipService) {
     authenticate {
         post("/relationships") {
             val request = call.receive<RelationshipRequest>()
-            val response = service.createPair(call.userId, request.partnerId, request.nickname)
+            val response = service.createPair(call.userId to request.partnerId)
 
             call.respond(HttpStatusCode.Created, response)
         }

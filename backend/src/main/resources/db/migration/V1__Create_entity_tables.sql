@@ -139,7 +139,11 @@ CREATE TABLE invites (
     type                invite_type NOT NULL
                                     CHECK (
                                         CASE type
-                                            WHEN 'INVITE_USER' OR 'LINK_DEVICE'
+                                            WHEN 'INVITE_USER'
+                                                THEN group_id IS NULL
+                                                AND recovery_request_id IS NULL
+
+                                            WHEN 'LINK_DEVICE'
                                                 THEN group_id IS NULL
                                                 AND recovery_request_id IS NULL
 

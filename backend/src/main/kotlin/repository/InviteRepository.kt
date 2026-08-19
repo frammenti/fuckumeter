@@ -86,7 +86,7 @@ class InviteRepository(
         return InviteWithId(invite, int("id"))
     }
 
-    fun findByCode(code: String): InviteWithId? = session {
+    suspend fun findByCode(code: String): InviteWithId? = session {
         single(
             sql(
                 """
@@ -101,7 +101,7 @@ class InviteRepository(
         }
     }
 
-    fun findAllByUser(userId: UUID): List<Invite> = session {
+    suspend fun findAllByUser(userId: UUID): List<Invite> = session {
         list(
             sql(
                 """
@@ -116,7 +116,7 @@ class InviteRepository(
         }
     }
 
-    fun findLatestByUser(
+    suspend fun findLatestByUser(
         userId: UUID,
         type: InviteType,
     ): InviteWithCode? = session {
@@ -139,7 +139,7 @@ class InviteRepository(
     }
 
     // Group invite is reused even if created by another user
-    fun findLatestForGroup(groupId: UUID): InviteWithCode? = session {
+    suspend fun findLatestForGroup(groupId: UUID): InviteWithCode? = session {
         single(
             sql(
                 """
@@ -157,7 +157,7 @@ class InviteRepository(
         }
     }
 
-    fun findRecoveryTarget(recoveryRequestId: Int): UUID? = session {
+    suspend fun findRecoveryTarget(recoveryRequestId: Int): UUID? = session {
         single(
             // We do not care if the recovery request was consumed
             // (the recovery code was generated) or not
@@ -176,7 +176,7 @@ class InviteRepository(
         }
     }
 
-    fun insert(invite: InviteWithCode) = session {
+    suspend fun insert(invite: InviteWithCode) = session {
         update(
                 sql(
                     """
@@ -199,7 +199,7 @@ class InviteRepository(
             .expectOne()
     }
 
-    fun consume(id: Int, userId: UUID) = session {
+    suspend fun consume(id: Int, userId: UUID) = session {
         update(
                 sql(
                     """
@@ -215,7 +215,7 @@ class InviteRepository(
             .expectOne()
     }
 
-    fun revoke(userId: UUID, type: InviteType, groupId: UUID? = null) = session {
+    suspend fun revoke(userId: UUID, type: InviteType, groupId: UUID? = null) = session {
         update(
                 sql(
                     """

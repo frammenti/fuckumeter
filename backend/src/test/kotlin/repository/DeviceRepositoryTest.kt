@@ -16,7 +16,7 @@ class DeviceRepositoryTest : RepositoryTest() {
     private val repository = DeviceRepository(database, hasher)
 
     @Test
-    fun `insert persists device`() {
+    suspend fun `insert persists device`() {
         val device =
             Device(
                 name = "Test device",
@@ -31,7 +31,7 @@ class DeviceRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `find returns null for unknown id`() {
+    suspend fun `find returns null for unknown id`() {
         repeat(5) {
             insertDevice()
         }
@@ -42,7 +42,7 @@ class DeviceRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `findAllForUser returns only user devices`() {
+    suspend fun `findAllForUser returns only user devices`() {
         val userA = insertUser()
         val userB = insertUser()
         repeat(2) {
@@ -57,7 +57,7 @@ class DeviceRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `findAllForUser returns empty list when user has no devices`() {
+    suspend fun `findAllForUser returns empty list when user has no devices`() {
         val userA = insertUser()
         val userB = insertUser()
         repeat(2) {
@@ -70,7 +70,7 @@ class DeviceRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `belongsToUser is true for device owned by the user`() {
+    suspend fun `belongsToUser is true for device owned by the user`() {
         val userId = insertUser()
         val deviceId = insertDevice(userId = userId)
 
@@ -78,14 +78,14 @@ class DeviceRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `belongsToUser is false for unknown user`() {
+    suspend fun `belongsToUser is false for unknown user`() {
         val deviceId = insertDevice()
 
         assertFalse(repository.belongsToUser(deviceId, UUID.randomUUID()))
     }
 
     @Test
-    fun `belongsToUser is false for unknown device`() {
+    suspend fun `belongsToUser is false for unknown device`() {
         val userId = insertUser()
 
         assertFalse(
@@ -94,7 +94,7 @@ class DeviceRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `rename updates device name`() {
+    suspend fun `rename updates device name`() {
         val id = insertDevice(name = "Test device")
 
         repository.rename(id, "Phone")
@@ -103,14 +103,14 @@ class DeviceRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `rename throws for unknown device`() {
+    suspend fun `rename throws for unknown device`() {
         assertThrows<NoSuchElementException> {
             repository.rename(UUID.randomUUID(), "Phone")
         }
     }
 
     @Test
-    fun `enableNotification changes notification flag`() {
+    suspend fun `enableNotification changes notification flag`() {
         val id = insertDevice(notificationEnabled = false)
 
         repository.enableNotification(id, true)
@@ -121,14 +121,14 @@ class DeviceRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `enableNotification throws for unknown device`() {
+    suspend fun `enableNotification throws for unknown device`() {
         assertThrows<NoSuchElementException> {
             repository.enableNotification(UUID.randomUUID(), true)
         }
     }
 
     @Test
-    fun `updateRefreshToken replaces refresh token`() {
+    suspend fun `updateRefreshToken replaces refresh token`() {
         val userId = insertUser()
         val id = insertDevice(userId = userId, refreshToken = "old-token")
 
@@ -147,7 +147,7 @@ class DeviceRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `updateRefreshToken fails when old token does not match`() {
+    suspend fun `updateRefreshToken fails when old token does not match`() {
         val id = insertDevice(refreshToken = "old-token")
 
         val missing =
@@ -161,7 +161,7 @@ class DeviceRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `updateFcmToken changes token`() {
+    suspend fun `updateFcmToken changes token`() {
         val id = insertDevice()
 
         repository.updateFcmToken(id, "new-token")
@@ -173,14 +173,14 @@ class DeviceRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `updateFcmToken throws for unknown device`() {
+    suspend fun `updateFcmToken throws for unknown device`() {
         assertThrows<NoSuchElementException> {
             repository.updateFcmToken(UUID.randomUUID(), "token")
         }
     }
 
     @Test
-    fun `updateLastSeen stores timestamp`() {
+    suspend fun `updateLastSeen stores timestamp`() {
 
         val id = insertDevice()
         val now = now()
@@ -194,14 +194,14 @@ class DeviceRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `updateLastSeen throws for unknown device`() {
+    suspend fun `updateLastSeen throws for unknown device`() {
         assertThrows<NoSuchElementException> {
             repository.updateLastSeen(UUID.randomUUID(), now())
         }
     }
 
     @Test
-    fun `delete removes device`() {
+    suspend fun `delete removes device`() {
         val id = insertDevice()
 
         repository.delete(id)
@@ -210,7 +210,7 @@ class DeviceRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `delete throws for unknown device`() {
+    suspend fun `delete throws for unknown device`() {
         assertThrows<NoSuchElementException> {
             repository.delete(UUID.randomUUID())
         }

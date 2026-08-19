@@ -4,12 +4,13 @@ import dev.frammenti.fuckumeter.shared.Time.now
 import fixtures.TestCrypto.hasher
 import java.time.Instant
 import java.util.UUID
+import kotlinx.coroutines.runBlocking
 import kotliquery.Row
 
 object TestFixtures {
     private val database = TestDatabase.database
 
-    fun <T> getProperty(
+    suspend fun <T> getProperty(
         table: String,
         column: String,
         id: Any,
@@ -29,13 +30,13 @@ object TestFixtures {
         }
     }
 
-    fun getProperty(
+    suspend fun getProperty(
         table: String,
         column: String,
         id: Any,
     ): String? = getProperty(table, column, id) { string(it) }
 
-    fun insertUser(
+    suspend fun insertUser(
         id: UUID = UUID.randomUUID(),
         name: String = "Test user",
         createdAt: Instant = now(),
@@ -60,9 +61,9 @@ object TestFixtures {
         return id
     }
 
-    fun insertDevice(
+    suspend fun insertDevice(
         id: UUID = UUID.randomUUID(),
-        userId: UUID = insertUser(),
+        userId: UUID = runBlocking { insertUser() },
         name: String = "Test device",
         notificationEnabled: Boolean = false,
         createdAt: Instant = now(),

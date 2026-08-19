@@ -13,7 +13,7 @@ class DeviceService(
     private val devices: DeviceRepository,
     private val tokens: TokenProvider,
 ) {
-    fun create(
+    suspend fun create(
         userId: UUID,
         name: String,
     ): CredentialsResponse {
@@ -34,7 +34,7 @@ class DeviceService(
         )
     }
 
-    fun refreshToken(
+    suspend fun refreshToken(
         deviceId: UUID,
         refreshToken: String,
     ): RefreshTokenResponse {
@@ -54,21 +54,19 @@ class DeviceService(
         )
     }
 
-    fun delete(
+    suspend fun delete(
         deviceId: UUID,
         userId: UUID,
     ) {
-        devices.transaction {
-            if (!devices.belongsToUser(deviceId, userId))
-                throw PermissionDeniedException(
-                    "You are not allowed to delete this device"
-                )
+        if (!devices.belongsToUser(deviceId, userId))
+            throw PermissionDeniedException(
+                "You are not allowed to delete this device"
+            )
 
-            devices.delete(deviceId)
-        }
+        devices.delete(deviceId)
     }
 
-    fun logout(deviceId: UUID) {
+    suspend fun logout(deviceId: UUID) {
         devices.delete(deviceId)
     }
 }

@@ -36,8 +36,8 @@ class RelationshipRepository(database: Database) : Repository(database) {
             instantOrNull("deleted_at"),
         )
 
-    // Must be used in a pair transaction
-    fun insert(relationship: Relationship) = session {
+    // Must be used in a transaction of a pair of relationships
+    suspend fun insert(relationship: Relationship) = session {
         update(
                 sql(
                     """

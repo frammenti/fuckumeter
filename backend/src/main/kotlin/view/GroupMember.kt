@@ -1,8 +1,9 @@
 package dev.frammenti.fuckumeter.view
 
-import java.util.UUID
-import kotliquery.Row
+import dev.frammenti.fuckumeter.dto.UUID
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class GroupMember(
     val id: UUID,
     val displayName: String,

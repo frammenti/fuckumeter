@@ -14,7 +14,7 @@ class UserRepositoryTest : RepositoryTest() {
     private val repository = UserRepository(database)
 
     @Test
-    fun `insert persists user`() {
+    suspend fun `insert persists user`() {
         val user = User(name = "Test username")
 
         repository.insert(user)
@@ -25,7 +25,7 @@ class UserRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `find returns null for unknown id`() {
+    suspend fun `find returns null for unknown id`() {
         repeat(5) {
             insertUser()
         }
@@ -36,7 +36,7 @@ class UserRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `rename updates username`() {
+    suspend fun `rename updates username`() {
         val id = insertUser(name = "Test username")
 
         repository.rename(id, "John")
@@ -45,14 +45,14 @@ class UserRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `rename throws for unknown device`() {
+    suspend fun `rename throws for unknown device`() {
         assertThrows<NoSuchElementException> {
             repository.rename(UUID.randomUUID(), "John")
         }
     }
 
     @Test
-    fun `deactivate marks active user as deactivated`() {
+    suspend fun `deactivate marks active user as deactivated`() {
         val id = insertUser()
 
         val changed = repository.deactivate(id)
@@ -64,7 +64,7 @@ class UserRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `deactivate fails for already deactivated user`() {
+    suspend fun `deactivate fails for already deactivated user`() {
         val id = insertUser(deactivatedAt = now())
 
         val changed = repository.deactivate(id)
@@ -73,7 +73,7 @@ class UserRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `deactivate fails for deleted user`() {
+    suspend fun `deactivate fails for deleted user`() {
         val id = insertUser(deactivatedAt = now(), deletedAt = now())
 
         val changed = repository.deactivate(id)
@@ -82,7 +82,7 @@ class UserRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `deactivate cannot be performed twice`() {
+    suspend fun `deactivate cannot be performed twice`() {
         val id = insertUser()
 
         assertTrue(repository.deactivate(id))
@@ -90,12 +90,12 @@ class UserRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `deactivate fails for unknown user`() {
+    suspend fun `deactivate fails for unknown user`() {
         assertFalse(repository.deactivate(UUID.randomUUID()))
     }
 
     @Test
-    fun `reactivate clears deactivated state`() {
+    suspend fun `reactivate clears deactivated state`() {
         val id = insertUser(deactivatedAt = now())
 
         val changed = repository.reactivate(id)
@@ -107,21 +107,21 @@ class UserRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `reactivate fails for active user`() {
+    suspend fun `reactivate fails for active user`() {
         val id = insertUser()
 
         assertFalse(repository.reactivate(id))
     }
 
     @Test
-    fun `reactivate fails for deleted user`() {
+    suspend fun `reactivate fails for deleted user`() {
         val id = insertUser(deactivatedAt = now(), deletedAt = now())
 
         assertFalse(repository.reactivate(id))
     }
 
     @Test
-    fun `reactivate cannot be performed twice`() {
+    suspend fun `reactivate cannot be performed twice`() {
         val id = insertUser(deactivatedAt = now())
 
         assertTrue(repository.reactivate(id))
@@ -129,12 +129,12 @@ class UserRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `reactivate fails for unknown user`() {
+    suspend fun `reactivate fails for unknown user`() {
         assertFalse(repository.reactivate(UUID.randomUUID()))
     }
 
     @Test
-    fun `user can be deactivated then reactivated`() {
+    suspend fun `user can be deactivated then reactivated`() {
         val id = insertUser()
 
         assertTrue(repository.deactivate(id))
@@ -146,7 +146,7 @@ class UserRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `delete marks deactivated user as deleted`() {
+    suspend fun `delete marks deactivated user as deleted`() {
         val id = insertUser(deactivatedAt = now())
 
         val changed = repository.delete(id)
@@ -158,7 +158,7 @@ class UserRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `delete fails for active user`() {
+    suspend fun `delete fails for active user`() {
         val id = insertUser()
 
         val changed = repository.delete(id)
@@ -167,7 +167,7 @@ class UserRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `delete cannot be performed twice`() {
+    suspend fun `delete cannot be performed twice`() {
         val id = insertUser(deactivatedAt = now())
 
         assertTrue(repository.delete(id))
@@ -175,7 +175,7 @@ class UserRepositoryTest : RepositoryTest() {
     }
 
     @Test
-    fun `delete fails for unknown user`() {
+    suspend fun `delete fails for unknown user`() {
         assertFalse(repository.delete(UUID.randomUUID()))
     }
 }

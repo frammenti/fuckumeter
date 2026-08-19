@@ -15,12 +15,12 @@ class UserService(
     private val devices: DeviceRepository,
     private val tokens: TokenProvider,
 ) {
-    fun get(id: UUID): UserResponse {
+    suspend fun get(id: UUID): UserResponse {
         val user = users.find(id) ?: throw ResourceNotFoundException("user")
         return UserResponse(user.id, user.name, user.status())
     }
 
-    fun create(
+    suspend fun create(
         name: String,
         deviceName: String,
     ): CredentialsResponse {
@@ -33,7 +33,7 @@ class UserService(
             )
         val refreshToken = tokens.refreshToken()
 
-        users.transaction<Unit> {
+        users.transaction {
             users.insert(user)
             devices.insert(device, refreshToken)
         }

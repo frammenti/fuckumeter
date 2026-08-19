@@ -11,12 +11,12 @@ abstract class RepositoryTest {
     val database: Database = TestDatabase.database
 
     @BeforeEach
-    fun setUp() {
+    suspend fun setUp() {
         TestDatabase.truncate()
     }
 
     @AfterAll
-    fun cleanUp() {
+    suspend fun cleanUp() {
         TestDatabase.truncate()
     }
 }

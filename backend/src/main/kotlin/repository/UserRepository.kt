@@ -27,7 +27,7 @@ class UserRepository(database: Database) : Repository(database) {
             instantOrNull("deleted_at"),
         )
 
-    fun find(id: UUID): User? = session {
+    suspend fun find(id: UUID): User? = session {
         single(
             sql(
                 """
@@ -42,7 +42,7 @@ class UserRepository(database: Database) : Repository(database) {
         }
     }
 
-    fun insert(user: User) = session {
+    suspend fun insert(user: User) = session {
         update(
                 sql(
                     """
@@ -55,7 +55,7 @@ class UserRepository(database: Database) : Repository(database) {
             .expectOne()
     }
 
-    fun rename(id: UUID, name: String) = session {
+    suspend fun rename(id: UUID, name: String) = session {
         update(
                 sql(
                     """
@@ -71,7 +71,7 @@ class UserRepository(database: Database) : Repository(database) {
             .expectOne()
     }
 
-    fun deactivate(id: UUID): Boolean = session {
+    suspend fun deactivate(id: UUID): Boolean = session {
         update(
             sql(
                 """
@@ -87,7 +87,7 @@ class UserRepository(database: Database) : Repository(database) {
         ) == 1
     }
 
-    fun reactivate(id: UUID): Boolean = session {
+    suspend fun reactivate(id: UUID): Boolean = session {
         update(
             sql(
                 """
@@ -103,7 +103,7 @@ class UserRepository(database: Database) : Repository(database) {
         ) == 1
     }
 
-    fun delete(id: UUID): Boolean = session {
+    suspend fun delete(id: UUID): Boolean = session {
         update(
             sql(
                 """
