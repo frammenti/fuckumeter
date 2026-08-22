@@ -3,6 +3,7 @@ package dev.frammenti.fuckumeter.repository
 import dev.frammenti.fuckumeter.db.Database
 import dev.frammenti.fuckumeter.domain.Relationship
 import dev.frammenti.fuckumeter.extensions.expectOne
+import java.util.UUID
 import kotliquery.Row
 
 class RelationshipRepository(database: Database) : Repository(database) {
@@ -35,6 +36,21 @@ class RelationshipRepository(database: Database) : Repository(database) {
             instantOrNull("deactivated_at"),
             instantOrNull("deleted_at"),
         )
+
+    suspend fun findPartner(relationshipId: UUID): UUID? = session {
+        single(
+            sql(
+                """
+                SELECT partner_id,
+                FROM relationships
+                WHERE id = :id;
+        """,
+                "id" to relationshipId,
+            )
+        ) { row ->
+            row.uuid("partner_id")
+        }
+    }
 
     // Must be used in a transaction of a pair of relationships
     suspend fun insert(relationship: Relationship) = session {

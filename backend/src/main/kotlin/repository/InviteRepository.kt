@@ -22,7 +22,7 @@ class InviteRepository(
                 is LinkDevice -> emptyArray()
                 is JoinGroup -> arrayOf("group_id" to invite.groupId)
                 is Recovery ->
-                    arrayOf("recovery_request_id" to invite.recoveryRequestId)
+                    arrayOf("relationship_id" to invite.relationshipId)
             }
 
         val (ciphertext, nonce) = cipher.encrypt(code)
@@ -64,7 +64,7 @@ class InviteRepository(
             InviteType.LINK_DEVICE -> LinkDevice(lifecycle)
             InviteType.RECOVERY ->
                 Recovery(
-                    int("recovery_request_id"),
+                    uuid("relationship_id"),
                     lifecycle,
                 )
         }
@@ -154,25 +154,6 @@ class InviteRepository(
             )
         ) { row ->
             row.toInviteWithCode()
-        }
-    }
-
-    suspend fun findRecoveryTarget(recoveryRequestId: Int): UUID? = session {
-        single(
-            // We do not care if the recovery request was consumed
-            // (the recovery code was generated) or not
-            sql(
-                """
-                SELECT r.partner_id
-                FROM recovery_requests q JOIN relationships r
-                ON q.relationship_id = r.id
-                WHERE q.id = :id
-                  AND q.revoked_at IS NULL;
-                """,
-                "id" to recoveryRequestId,
-            )
-        ) { row ->
-            row.uuid("partner_id")
         }
     }
 

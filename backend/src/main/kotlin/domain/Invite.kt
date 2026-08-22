@@ -76,7 +76,8 @@ sealed class Invite(protected open val lifecycle: Lifecycle) {
 
     fun status(): InviteStatus {
         return when {
-            this.consumedAt != null -> InviteStatus.CONSUMED
+            this.consumedAt != null && this.type != InviteType.JOIN_GROUP ->
+                InviteStatus.CONSUMED
             this.revokedAt != null -> InviteStatus.REVOKED
             this.expiresAt <= now() -> InviteStatus.EXPIRED
             else -> InviteStatus.ACTIVE
@@ -143,7 +144,7 @@ sealed class Invite(protected open val lifecycle: Lifecycle) {
     }
 
     data class Recovery(
-        val recoveryRequestId: Int,
+        val relationshipId: UUID,
         override val lifecycle: Lifecycle,
     ) : Invite(lifecycle) {
         override val type = Companion.type
@@ -151,9 +152,9 @@ sealed class Invite(protected open val lifecycle: Lifecycle) {
 
         constructor(
             createdBy: UUID,
-            recoveryRequestId: Int,
+            relationshipId: UUID,
         ) : this(
-            recoveryRequestId,
+            relationshipId,
             Lifecycle(createdBy = createdBy, expiry = expiry),
         )
 

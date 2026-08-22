@@ -22,16 +22,14 @@ class InviteService(
     private val groupService: GroupService,
     private val relationshipService: RelationshipService,
 ) {
-    private suspend fun <I : Invite> createInvite(
+    private suspend fun <I : Invite> createOrRetrieveInvite(
         userId: UUID,
         factory: () -> I,
     ): InviteResponse {
-        val new = WithCode(factory())
+        val invite = factory()
 
         val previous =
-            invites
-                .findLatestByUser(userId, new.invite.type)
-                .expect<WithCode<I>>()
+            invites.findLatestByUser(userId, invite.type).expect<WithCode<I>>()
 
         val previousStatus = previous?.invite?.status() ?: InviteStatus.NONE
 
@@ -43,6 +41,8 @@ class InviteService(
             )
         }
 
+        val new = WithCode(invite)
+
         invites.insert(new)
 
         return InviteResponse(
@@ -53,12 +53,12 @@ class InviteService(
     }
 
     suspend fun inviteUser(userId: UUID) =
-        createInvite(userId) {
+        createOrRetrieveInvite(userId) {
             InviteUser(createdBy = userId)
         }
 
     suspend fun joinGroup(userId: UUID, groupId: UUID) =
-        createInvite(userId) {
+        createOrRetrieveInvite(userId) {
             JoinGroup(
                 createdBy = userId,
                 groupId = groupId,
@@ -66,20 +66,20 @@ class InviteService(
         }
 
     suspend fun linkDevice(userId: UUID) =
-        createInvite(userId) {
+        createOrRetrieveInvite(userId) {
             LinkDevice(createdBy = userId)
         }
 
     suspend fun recovery(
         userId: UUID,
-        recoveryRequestId:
-            Int, // it always gets called after checking the recovery request
+        relationshipId: UUID,
     ) =
-        createInvite(userId) {
-            Recovery(createdBy = userId, recoveryRequestId = recoveryRequestId)
+        createOrRetrieveInvite(userId) {
+            Recovery(createdBy = userId, relationshipId = relationshipId)
         }
 
     // Redemption
+
     private data class ValidInvite<out I : Invite>(
         val invite: I,
         val id: Int,
@@ -117,27 +117,26 @@ class InviteService(
         if (deviceName == null)
             return PendingLinkDeviceRedemptionResponse(creator.name)
 
-        val credentials = deviceService.create(creator.id, deviceName)
+        val credentials = invites.transaction {
+            invites.consume(id, creator.id)
+            deviceService.create(creator.id, deviceName)
+        }
 
-        invites.consume(id, creator.id)
         return LinkDeviceRedemptionResponse(creator.name, credentials)
     }
 
     private suspend fun redeemRecovery(
         id: Int,
         principal: UserDevicePrincipal?,
-        requestId: Int,
+        relationshipId: UUID,
         deviceName: String?,
     ): RedemptionResponse {
         requireAnonymous(principal)
 
-        val userId =
-            invites.findRecoveryTarget(requestId)
-                ?: throw InvalidCodeException()
-
         val user =
             try {
-                userService.get(userId)
+                val partnerId = relationshipService.getPartner(relationshipId)
+                userService.get(partnerId)
             } catch (_: ResourceNotFoundException) {
                 throw InvalidCodeException()
             }
@@ -145,9 +144,11 @@ class InviteService(
         if (deviceName == null)
             return PendingRecoveryRedemptionResponse(user.name)
 
-        val credentials = deviceService.create(user.id, deviceName)
+        val credentials = invites.transaction {
+            invites.consume(id, user.id)
+            deviceService.create(user.id, deviceName)
+        }
 
-        invites.consume(id, user.id)
         return RecoveryRedemptionResponse(user.name, credentials)
     }
 
@@ -158,26 +159,30 @@ class InviteService(
         username: String?,
         deviceName: String?,
     ): RedemptionResponse {
-        val credentials =
-            if (principal == null) {
-                if (username == null || deviceName == null)
-                    return PendingInviteUserRedemptionResponse(
-                        partnerName = creator.name
-                    )
-                userService.create(username, deviceName)
-            } else null
+        if (principal == null && (username == null || deviceName == null))
+            return PendingInviteUserRedemptionResponse(
+                partnerName = creator.name
+            )
 
-        val userId = principal?.userId ?: credentials!!.userId
+        return invites.transaction {
+            val credentials =
+                if (principal == null) {
+                    userService.create(username!!, deviceName!!)
+                } else null
 
-        val (relationshipId) =
-            relationshipService.createPair(userId to creator.id)
+            val userId = principal?.userId ?: credentials!!.userId
 
-        invites.consume(id, userId)
-        return InviteUserRedemptionResponse(
-            creator.name,
-            relationshipId,
-            credentials,
-        )
+            val (relationshipId) =
+                relationshipService.createPair(userId to creator.id)
+
+            invites.consume(id, userId)
+
+            InviteUserRedemptionResponse(
+                creator.name,
+                relationshipId,
+                credentials,
+            )
+        }
     }
 
     private suspend fun redeemJoinGroup(
@@ -209,7 +214,7 @@ class InviteService(
             groupService.addMember(userId, groupId)
             invites.consume(id, userId)
 
-            return@transaction JoinGroupRedemptionResponse(
+            JoinGroupRedemptionResponse(
                 groupName,
                 groupId,
                 credentials,
@@ -228,11 +233,12 @@ class InviteService(
         return when (invite) {
             is LinkDevice ->
                 redeemLinkDevice(id, principal, creator, deviceName)
+
             is Recovery ->
                 redeemRecovery(
                     id,
                     principal,
-                    invite.recoveryRequestId,
+                    invite.relationshipId,
                     deviceName,
                 )
             is InviteUser ->

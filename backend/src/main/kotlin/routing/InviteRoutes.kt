@@ -2,9 +2,10 @@ package dev.frammenti.fuckumeter.routing
 
 import dev.frammenti.fuckumeter.auth.UserDevicePrincipal
 import dev.frammenti.fuckumeter.dto.InviteRequest.JoinGroupRequest
-import dev.frammenti.fuckumeter.dto.InviteRequest.RecoveryRequest
 import dev.frammenti.fuckumeter.dto.RedemptionRequest
+import dev.frammenti.fuckumeter.exceptions.MissingParameterException
 import dev.frammenti.fuckumeter.extensions.requireParameter
+import dev.frammenti.fuckumeter.extensions.requireUUID
 import dev.frammenti.fuckumeter.extensions.userId
 import dev.frammenti.fuckumeter.service.InviteService
 import io.ktor.server.auth.AuthenticationStrategy
@@ -38,13 +39,13 @@ fun Routing.inviteRoutes(service: InviteService) {
             call.respond(response)
         }
 
-        post("/invites/group") {
-            val request = call.receive<JoinGroupRequest>()
+        post("/invites/group/{id}") {
+            val groupId = call.requireUUID("id")
 
             val response =
                 service.joinGroup(
                     userId = call.userId,
-                    groupId = request.groupId,
+                    groupId = groupId,
                 )
 
             call.respond(response)
@@ -56,14 +57,18 @@ fun Routing.inviteRoutes(service: InviteService) {
             call.respond(response)
         }
 
-        // TODO: Integrate with recovery requests
-        post("/invites/recovery") {
-            val request = call.receive<RecoveryRequest>()
+        post("/invites/recovery/{id?}") {
+            val relationshipId =
+                try {
+                    call.requireUUID("id")
+                } catch (_: MissingParameterException) {
+                    null
+                }
 
             val response =
                 service.recovery(
                     userId = call.userId,
-                    recoveryRequestId = request.recoveryRequestId,
+                    relationshipId = relationshipId,
                 )
 
             call.respond(response)

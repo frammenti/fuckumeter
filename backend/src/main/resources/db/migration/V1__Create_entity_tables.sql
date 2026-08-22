@@ -141,23 +141,23 @@ CREATE TABLE invites (
                                         CASE type
                                             WHEN 'INVITE_USER'
                                                 THEN group_id IS NULL
-                                                AND recovery_request_id IS NULL
+                                                AND relationship_id IS NULL
 
                                             WHEN 'LINK_DEVICE'
                                                 THEN group_id IS NULL
-                                                AND recovery_request_id IS NULL
+                                                AND relationship_id IS NULL
 
                                             WHEN 'JOIN_GROUP'
                                                 THEN group_id IS NOT NULL
-                                                AND recovery_request_id IS NULL
+                                                AND relationship_id IS NULL
 
                                             WHEN 'RECOVERY'
                                                 THEN group_id IS NULL
-                                                AND recovery_request_id IS NOT NULL
+                                                AND relationship_id IS NOT NULL
                                             END
                                     ),
-    group_id            uuid,
-    recovery_request_id bigint,
+    group_id            uuid        REFERENCES groups (id) ON DELETE CASCADE,
+    relationship_id     uuid        REFERENCES relationships (id) ON DELETE CASCADE,
     created_at          timestamptz NOT NULL DEFAULT now(),
     expires_at          timestamptz NOT NULL,
     consumed_at         timestamptz,
@@ -172,8 +172,8 @@ CREATE INDEX invites_expires_at_idx ON invites (expires_at);
 CREATE VIEW active_invites AS
     SELECT *
     FROM invites
-    WHERE revoked_at IS NULL
-      AND consumed_at IS NULL
+    WHERE (consumed_at IS NULL OR type = 'JOIN_GROUP'::invite_type)
+      AND revoked_at IS NULL
       AND expires_at > now();
 
 -- There is at most one active invite, older ones are revoked
@@ -187,8 +187,8 @@ BEGIN
     WHERE created_by_user_id = NEW.created_by_user_id
       AND type = NEW.type
       AND group_id = NEW.group_id
+      AND (consumed_at IS NULL OR type = 'JOIN_GROUP'::invite_type)
       AND revoked_at IS NULL
-      AND consumed_at IS NULL
       AND expires_at > now();
 
     RETURN NEW;
@@ -204,18 +204,19 @@ EXECUTE FUNCTION revoke_previous_invite();
 -- Recovery requests
 -- ---------------------------------------------------------------------------
 CREATE TABLE recovery_requests (
-    id              bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    relationship_id uuid        NOT NULL REFERENCES relationships (id) ON DELETE CASCADE,
-    revoked_by_id   uuid        REFERENCES users (id) ON DELETE SET NULL,
-    created_at      timestamptz NOT NULL DEFAULT now(),
-    consumed_at     timestamptz,
-    revoked_at      timestamptz
+    id                    bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    relationship_id       uuid        NOT NULL REFERENCES relationships (id) ON DELETE CASCADE,
+    invite_id             bigint      REFERENCES invites (id) ON DELETE CASCADE,
+    created_at            timestamptz NOT NULL DEFAULT now(),
+    revoked_at            timestamptz,
+    revoked_by_partner_at timestamptz
 );
 
--- At most one open recovery request per relationship
+-- At most one open recovery request per relationship:
+-- the user must revoke the request before submitting a new one
 CREATE UNIQUE INDEX recovery_requests_open_uq
     ON recovery_requests (relationship_id)
-    WHERE consumed_at IS NULL AND revoked_at IS NULL;
+    WHERE revoked_at IS NULL;
 
 CREATE INDEX recovery_requests_relationship_id_idx
     ON recovery_requests (relationship_id);
