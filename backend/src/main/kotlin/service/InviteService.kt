@@ -1,9 +1,9 @@
 package dev.frammenti.fuckumeter.service
 
-import dev.frammenti.fuckumeter.auth.UserDevicePrincipal
 import dev.frammenti.fuckumeter.domain.Invite
 import dev.frammenti.fuckumeter.domain.Invite.*
 import dev.frammenti.fuckumeter.domain.User.UserStatus
+import dev.frammenti.fuckumeter.dto.CredentialsResponse
 import dev.frammenti.fuckumeter.dto.InviteResponse
 import dev.frammenti.fuckumeter.dto.RedemptionResponse
 import dev.frammenti.fuckumeter.dto.RedemptionResponse.*
@@ -22,7 +22,7 @@ class InviteService(
     private val groupService: GroupService,
     private val relationshipService: RelationshipService,
 ) {
-    private suspend fun <I : Invite> createOrRetrieveInvite(
+    private suspend fun <I : Invite> getOrCreateInvite(
         userId: UUID,
         factory: () -> I,
     ): InviteResponse {
@@ -53,12 +53,12 @@ class InviteService(
     }
 
     suspend fun inviteUser(userId: UUID) =
-        createOrRetrieveInvite(userId) {
+        getOrCreateInvite(userId) {
             InviteUser(createdBy = userId)
         }
 
     suspend fun joinGroup(userId: UUID, groupId: UUID) =
-        createOrRetrieveInvite(userId) {
+        getOrCreateInvite(userId) {
             JoinGroup(
                 createdBy = userId,
                 groupId = groupId,
@@ -66,27 +66,88 @@ class InviteService(
         }
 
     suspend fun linkDevice(userId: UUID) =
-        createOrRetrieveInvite(userId) {
+        getOrCreateInvite(userId) {
             LinkDevice(createdBy = userId)
         }
 
     suspend fun recovery(
         userId: UUID,
-        relationshipId: UUID,
+        relationshipId: UUID?,
     ) =
-        createOrRetrieveInvite(userId) {
+        getOrCreateInvite(userId) {
             Recovery(createdBy = userId, relationshipId = relationshipId)
         }
 
     // Redemption
 
-    private data class ValidInvite<out I : Invite>(
-        val invite: I,
-        val id: Int,
+    private data class RedemptionContext(
+        val inviteId: Int,
         val creator: UserResponse,
     )
 
-    private suspend fun validate(code: String): ValidInvite<Invite> {
+    private sealed class RedeemingUser {
+        open suspend fun UserService.create():
+            Pair<UUID, CredentialsResponse?> =
+            error("Pending has no identity to create")
+
+        data class Existing(val id: UUID) : RedeemingUser() {
+            override suspend fun UserService.create():
+                Pair<UUID, CredentialsResponse?> = id to null
+        }
+
+        data class New(val name: String, val deviceName: String) :
+            RedeemingUser() {
+            override suspend fun UserService.create():
+                Pair<UUID, CredentialsResponse?> =
+                create(name, deviceName).let { it.userId to it }
+        }
+
+        data object Pending : RedeemingUser()
+
+        companion object {
+            fun resolve(
+                userId: UUID?,
+                username: String?,
+                deviceName: String?,
+            ): RedeemingUser =
+                when {
+                    userId != null -> Existing(userId)
+                    username != null && deviceName != null ->
+                        New(username, deviceName)
+                    else -> Pending
+                }
+        }
+    }
+
+    private sealed class RedeemingDevice {
+        open suspend fun DeviceService.create(
+            userId: UUID
+        ): CredentialsResponse = error("Pending has no device to create")
+
+        data class New(val deviceName: String) : RedeemingDevice() {
+            override suspend fun DeviceService.create(
+                userId: UUID
+            ): CredentialsResponse = create(userId, deviceName)
+        }
+
+        data object Pending : RedeemingDevice()
+
+        companion object {
+            fun resolve(
+                userId: UUID?,
+                deviceName: String?,
+            ): RedeemingDevice =
+                when {
+                    userId != null -> throw AlreadyAuthenticatedException()
+                    deviceName != null -> New(deviceName)
+                    else -> Pending
+                }
+        }
+    }
+
+    private suspend fun validate(
+        code: String
+    ): Pair<Invite, RedemptionContext> {
         val (invite, id) =
             invites.findByCode(code) ?: throw InvalidCodeException()
         if (invite.status() != InviteStatus.ACTIVE) throw InvalidCodeException()
@@ -99,39 +160,32 @@ class InviteService(
             }
         if (creator.status != UserStatus.ACTIVE) throw InvalidCodeException()
 
-        return ValidInvite(invite, id, creator)
-    }
-
-    private fun requireAnonymous(principal: UserDevicePrincipal?) {
-        if (principal != null) throw AlreadyAuthenticatedException()
+        return invite to RedemptionContext(id, creator)
     }
 
     private suspend fun redeemLinkDevice(
-        id: Int,
-        principal: UserDevicePrincipal?,
-        creator: UserResponse,
-        deviceName: String?,
+        context: RedemptionContext,
+        device: RedeemingDevice,
     ): RedemptionResponse {
-        requireAnonymous(principal)
+        val (inviteId, creator) = context
 
-        if (deviceName == null)
+        if (device !is RedeemingDevice.New)
             return PendingLinkDeviceRedemptionResponse(creator.name)
 
         val credentials = invites.transaction {
-            invites.consume(id, creator.id)
-            deviceService.create(creator.id, deviceName)
+            invites.consume(inviteId, creator.id)
+            with(device) { deviceService.create(creator.id) }
         }
 
         return LinkDeviceRedemptionResponse(creator.name, credentials)
     }
 
     private suspend fun redeemRecovery(
-        id: Int,
-        principal: UserDevicePrincipal?,
+        context: RedemptionContext,
+        device: RedeemingDevice,
         relationshipId: UUID,
-        deviceName: String?,
     ): RedemptionResponse {
-        requireAnonymous(principal)
+        val (inviteId) = context
 
         val user =
             try {
@@ -141,58 +195,49 @@ class InviteService(
                 throw InvalidCodeException()
             }
 
-        if (deviceName == null)
+        if (device is RedeemingDevice.Pending)
             return PendingRecoveryRedemptionResponse(user.name)
 
         val credentials = invites.transaction {
-            invites.consume(id, user.id)
-            deviceService.create(user.id, deviceName)
+            invites.consume(inviteId, user.id)
+            with(device) { deviceService.create(user.id) }
         }
 
         return RecoveryRedemptionResponse(user.name, credentials)
     }
 
     private suspend fun redeemInviteUser(
-        id: Int,
-        principal: UserDevicePrincipal?,
-        creator: UserResponse,
-        username: String?,
-        deviceName: String?,
+        context: RedemptionContext,
+        user: RedeemingUser,
     ): RedemptionResponse {
-        if (principal == null && (username == null || deviceName == null))
-            return PendingInviteUserRedemptionResponse(
-                partnerName = creator.name
-            )
+        val (inviteId, creator) = context
 
-        return invites.transaction {
-            val credentials =
-                if (principal == null) {
-                    userService.create(username!!, deviceName!!)
-                } else null
+        return if (user is RedeemingUser.Pending)
+            PendingInviteUserRedemptionResponse(partnerName = creator.name)
+        else
+            invites.transaction {
+                val (userId, credentials) = with(user) { userService.create() }
 
-            val userId = principal?.userId ?: credentials!!.userId
+                invites.consume(inviteId, userId)
 
-            val (relationshipId) =
-                relationshipService.createPair(userId to creator.id)
+                val (relationshipId) =
+                    relationshipService.createPair(userId to creator.id)
 
-            invites.consume(id, userId)
-
-            InviteUserRedemptionResponse(
-                creator.name,
-                relationshipId,
-                credentials,
-            )
-        }
+                InviteUserRedemptionResponse(
+                    creator.name,
+                    relationshipId,
+                    credentials,
+                )
+            }
     }
 
     private suspend fun redeemJoinGroup(
-        id: Int,
-        principal: UserDevicePrincipal?,
-        creator: UserResponse,
+        context: RedemptionContext,
+        user: RedeemingUser,
         groupId: UUID,
-        username: String?,
-        deviceName: String?,
     ): RedemptionResponse {
+        val (inviteId, creator) = context
+
         val groupName =
             try {
                 groupService.getName(groupId, creator.id)
@@ -200,57 +245,70 @@ class InviteService(
                 throw InvalidCodeException()
             }
 
-        if (principal == null && (username == null || deviceName == null))
-            return PendingJoinGroupRedemptionResponse(groupName)
+        return if (user is RedeemingUser.Pending)
+            PendingJoinGroupRedemptionResponse(groupName)
+        else
+            invites.transaction {
+                val (userId, credentials) = with(user) { userService.create() }
 
-        return invites.transaction {
-            val credentials =
-                if (principal == null) {
-                    userService.create(username!!, deviceName!!)
-                } else null
+                invites.consume(inviteId, userId)
 
-            val userId = principal?.userId ?: credentials!!.userId
+                groupService.addMember(userId, groupId)
 
-            groupService.addMember(userId, groupId)
-            invites.consume(id, userId)
-
-            JoinGroupRedemptionResponse(
-                groupName,
-                groupId,
-                credentials,
-            )
-        }
+                JoinGroupRedemptionResponse(
+                    groupName,
+                    groupId,
+                    credentials,
+                )
+            }
     }
 
     suspend fun redeem(
         code: String,
-        principal: UserDevicePrincipal?,
+        userId: UUID?,
         username: String?,
         deviceName: String?,
     ): RedemptionResponse {
-        val (invite, id, creator) = validate(code)
+        val (invite, context) = validate(code)
 
         return when (invite) {
             is LinkDevice ->
-                redeemLinkDevice(id, principal, creator, deviceName)
+                redeemLinkDevice(
+                    context,
+                    RedeemingDevice.resolve(
+                        userId,
+                        deviceName,
+                    ),
+                )
 
             is Recovery ->
                 redeemRecovery(
-                    id,
-                    principal,
+                    context,
+                    RedeemingDevice.resolve(
+                        userId,
+                        deviceName,
+                    ),
                     invite.relationshipId,
-                    deviceName,
                 )
+
             is InviteUser ->
-                redeemInviteUser(id, principal, creator, username, deviceName)
+                redeemInviteUser(
+                    context,
+                    RedeemingUser.resolve(
+                        userId,
+                        username,
+                        deviceName,
+                    ),
+                )
             is JoinGroup ->
                 redeemJoinGroup(
-                    id,
-                    principal,
-                    creator,
+                    context,
+                    RedeemingUser.resolve(
+                        userId,
+                        username,
+                        deviceName,
+                    ),
                     invite.groupId,
-                    username,
-                    deviceName,
                 )
         }
     }

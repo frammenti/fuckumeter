@@ -1,7 +1,6 @@
 package dev.frammenti.fuckumeter.routing
 
 import dev.frammenti.fuckumeter.auth.UserDevicePrincipal
-import dev.frammenti.fuckumeter.dto.InviteRequest.JoinGroupRequest
 import dev.frammenti.fuckumeter.dto.RedemptionRequest
 import dev.frammenti.fuckumeter.exceptions.MissingParameterException
 import dev.frammenti.fuckumeter.extensions.requireParameter
@@ -11,7 +10,6 @@ import dev.frammenti.fuckumeter.service.InviteService
 import io.ktor.server.auth.AuthenticationStrategy
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
-import io.ktor.server.request.receive
 import io.ktor.server.request.receiveNullable
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Routing
@@ -27,7 +25,8 @@ fun Routing.inviteRoutes(service: InviteService) {
             // principal is null if no valid JWT was provided
             val principal = call.principal<UserDevicePrincipal>()
 
-            val response = service.redeem(code, principal, username, deviceName)
+            val response =
+                service.redeem(code, principal?.userId, username, deviceName)
             call.respond(response)
         }
     }

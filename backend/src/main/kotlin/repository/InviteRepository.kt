@@ -187,7 +187,10 @@ class InviteRepository(
                     UPDATE invites
                     SET consumed_by_user_id = :user_id,
                         consumed_at = now()
-                    WHERE id = :id;
+                    WHERE id = :id
+                      AND (consumed_at IS NULL OR type = 'JOIN_GROUP'::invite_type)
+                      AND revoked_at IS NULL
+                      AND expires_at > now();
                     """,
                     "id" to id,
                     "user_id" to userId,

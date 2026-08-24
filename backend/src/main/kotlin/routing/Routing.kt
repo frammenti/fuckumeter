@@ -1,10 +1,6 @@
 package dev.frammenti.fuckumeter.routing
 
-import dev.frammenti.fuckumeter.service.DeviceService
-import dev.frammenti.fuckumeter.service.GroupService
-import dev.frammenti.fuckumeter.service.InviteService
-import dev.frammenti.fuckumeter.service.RelationshipService
-import dev.frammenti.fuckumeter.service.UserService
+import dev.frammenti.fuckumeter.service.*
 import io.ktor.server.application.Application
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
