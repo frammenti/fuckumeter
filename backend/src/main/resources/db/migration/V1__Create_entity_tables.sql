@@ -177,26 +177,27 @@ CREATE VIEW active_invites AS
       AND expires_at > now();
 
 -- There is at most one active invite, older ones are revoked
+CREATE UNIQUE INDEX invites_one_unrevoked
+    ON invites (created_by_user_id, type, group_id)
+    WHERE revoked_at IS NULL;
+
 CREATE FUNCTION revoke_previous_invite()
     RETURNS TRIGGER
     LANGUAGE plpgsql
 AS $$
 BEGIN
-    UPDATE invites
+    UPDATE active_invites
     SET revoked_at = now()
     WHERE created_by_user_id = NEW.created_by_user_id
       AND type = NEW.type
-      AND group_id = NEW.group_id
-      AND (consumed_at IS NULL OR type = 'JOIN_GROUP'::invite_type)
-      AND revoked_at IS NULL
-      AND expires_at > now();
+      AND group_id = NEW.group_id;
 
     RETURN NEW;
 END;
 $$;
 
 CREATE TRIGGER revoke_previous_invite
-    AFTER INSERT ON invites
+    BEFORE INSERT ON invites
     FOR EACH ROW
 EXECUTE FUNCTION revoke_previous_invite();
 

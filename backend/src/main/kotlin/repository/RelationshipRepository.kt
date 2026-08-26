@@ -37,6 +37,21 @@ class RelationshipRepository(database: Database) : Repository(database) {
             instantOrNull("deleted_at"),
         )
 
+    suspend fun find(id: UUID): Relationship? = session {
+        single(
+            sql(
+                """
+                SELECT *
+                FROM relationships
+                WHERE id = :id;
+                """,
+                "id" to id,
+            )
+        ) { row ->
+            row.toRelationship()
+        }
+    }
+
     suspend fun findPartner(relationshipId: UUID): UUID? = session {
         single(
             sql(

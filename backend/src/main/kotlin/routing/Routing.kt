@@ -10,6 +10,7 @@ fun Application.configureRouting(
     deviceService: DeviceService,
     groupService: GroupService,
     inviteService: InviteService,
+    redemptionService: RedemptionService,
     relationshipService: RelationshipService,
     userService: UserService,
 ) {
@@ -20,7 +21,7 @@ fun Application.configureRouting(
 
         deviceRoutes(deviceService)
         groupRoutes(groupService)
-        inviteRoutes(inviteService)
+        inviteRoutes(inviteService, redemptionService)
         relationshipRoutes(relationshipService)
         userRoutes(userService)
     }

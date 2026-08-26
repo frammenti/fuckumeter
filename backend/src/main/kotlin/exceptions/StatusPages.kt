@@ -14,9 +14,24 @@ fun Application.configureStatusPages() {
     val realm = JwtConfig(environment.config).realm
 
     install(StatusPages) {
-        // Custom exceptions
-        exception<ApiException> { call, cause ->
+        // Auth exceptions
+        exception<AuthenticationException> { call, cause ->
             call.error(cause, realm)
+        }
+
+        // Conflict exceptions
+        exception<ConflictException> { call, cause ->
+            call.error(cause)
+        }
+
+        // Locked exceptions
+        exception<LockedException> { call, cause ->
+            call.error(cause)
+        }
+
+        // Other custom exceptions
+        exception<ApiException> { call, cause ->
+            call.error(cause)
         }
 
         // Ktor validation exceptions

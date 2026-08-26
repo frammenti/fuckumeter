@@ -4,8 +4,13 @@ import io.ktor.http.HttpStatusCode
 
 sealed class NotFoundException(
     code: String = "not_found",
-    message: String = "Not found",
-) : ApiException(HttpStatusCode.NotFound, code, message)
+    message: String = "The requested resource does not exist",
+) : ApiException(
+    status = HttpStatusCode.NotFound,
+    code = code,
+    title = "Not Found",
+    message = message,
+)
 
 class ResourceNotFoundException(resource: String = "resource") :
     NotFoundException(
@@ -15,6 +20,6 @@ class ResourceNotFoundException(resource: String = "resource") :
 
 class InvalidCodeException() :
     NotFoundException(
-        "invalid_code",
-        "Code is not valid",
+        "invalid_invite_code",
+        "Invite code is not valid",
     )

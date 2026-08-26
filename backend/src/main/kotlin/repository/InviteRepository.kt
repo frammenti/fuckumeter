@@ -1,8 +1,10 @@
 package dev.frammenti.fuckumeter.repository
 
 import dev.frammenti.fuckumeter.db.Database
+import dev.frammenti.fuckumeter.domain.InternalId.WithId
 import dev.frammenti.fuckumeter.domain.Invite
 import dev.frammenti.fuckumeter.domain.Invite.*
+import dev.frammenti.fuckumeter.extensions.expectNotNull
 import dev.frammenti.fuckumeter.extensions.expectOne
 import dev.frammenti.fuckumeter.security.AesGcmCipher
 import dev.frammenti.fuckumeter.security.Encrypted
@@ -43,7 +45,7 @@ class InviteRepository(
     }
 
     private fun Row.toInvite(): Invite {
-        val type = InviteType.valueOf(string("type"))
+        val type = Type.valueOf(string("type"))
         val lifecycle =
             Lifecycle(
                 uuid("created_by_user_id"),
@@ -55,14 +57,14 @@ class InviteRepository(
             )
 
         return when (type) {
-            InviteType.INVITE_USER -> InviteUser(lifecycle)
-            InviteType.JOIN_GROUP ->
+            Type.INVITE_USER -> InviteUser(lifecycle)
+            Type.JOIN_GROUP ->
                 JoinGroup(
                     uuid("group_id"),
                     lifecycle,
                 )
-            InviteType.LINK_DEVICE -> LinkDevice(lifecycle)
-            InviteType.RECOVERY ->
+            Type.LINK_DEVICE -> LinkDevice(lifecycle)
+            Type.RECOVERY ->
                 Recovery(
                     uuid("relationship_id"),
                     lifecycle,
@@ -81,12 +83,27 @@ class InviteRepository(
         return InviteWithCode(invite, cipher.decrypt(encrypted))
     }
 
-    private fun Row.toInviteWithId(): InviteWithId {
+    private fun Row.toInviteWithId(): WithId<Invite> {
         val invite = toInvite()
-        return InviteWithId(invite, int("id"))
+        return WithId(invite, long("id"))
     }
 
-    suspend fun findByCode(code: String): InviteWithId? = session {
+    suspend fun find(id: Long): WithCode<Invite>? = session {
+        single(
+            sql(
+                """
+                SELECT *
+                FROM invites
+                WHERE id = :id
+                """,
+                "id" to id,
+            )
+        ) { row ->
+            row.toInviteWithCode()
+        }
+    }
+
+    suspend fun findByCode(code: String): WithId<Invite>? = session {
         single(
             sql(
                 """
@@ -101,24 +118,9 @@ class InviteRepository(
         }
     }
 
-    suspend fun findAllByUser(userId: UUID): List<Invite> = session {
-        list(
-            sql(
-                """
-                SELECT *
-                FROM invites
-                WHERE created_by_user_id = :user_id
-                """,
-                "user_id" to userId,
-            )
-        ) { row ->
-            row.toInvite()
-        }
-    }
-
     suspend fun findLatestByUser(
         userId: UUID,
-        type: InviteType,
+        type: Type,
     ): InviteWithCode? = session {
         single(
             sql(
@@ -138,27 +140,23 @@ class InviteRepository(
         }
     }
 
-    // Group invite is reused even if created by another user
-    suspend fun findLatestForGroup(groupId: UUID): InviteWithCode? = session {
-        single(
+    suspend fun findAllByUser(userId: UUID): List<Invite> = session {
+        list(
             sql(
                 """
-                    SELECT *
-                    FROM invites
-                    WHERE group_id = :group_id
-                    AND type = JOIN_GROUP
-                    ORDER BY id DESC
-                    LIMIT 1;
-                    """,
-                "group_id" to groupId,
+                SELECT *
+                FROM invites
+                WHERE created_by_user_id = :user_id
+                """,
+                "user_id" to userId,
             )
         ) { row ->
-            row.toInviteWithCode()
+            row.toInvite()
         }
     }
 
-    suspend fun insert(invite: InviteWithCode) = session {
-        update(
+    suspend fun insert(invite: InviteWithCode): Long = session {
+        updateAndReturnGeneratedKey(
                 sql(
                     """
                     INSERT INTO invites (
@@ -177,20 +175,17 @@ class InviteRepository(
                     *invite.toParams(),
                 )
             )
-            .expectOne()
+            .expectNotNull()
     }
 
-    suspend fun consume(id: Int, userId: UUID) = session {
+    suspend fun consume(id: Long, userId: UUID) = session {
         update(
                 sql(
                     """
-                    UPDATE invites
+                    UPDATE active_invites
                     SET consumed_by_user_id = :user_id,
                         consumed_at = now()
-                    WHERE id = :id
-                      AND (consumed_at IS NULL OR type = 'JOIN_GROUP'::invite_type)
-                      AND revoked_at IS NULL
-                      AND expires_at > now();
+                    WHERE id = :id;
                     """,
                     "id" to id,
                     "user_id" to userId,
@@ -199,21 +194,22 @@ class InviteRepository(
             .expectOne()
     }
 
-    suspend fun revoke(userId: UUID, type: InviteType, groupId: UUID? = null) = session {
-        update(
-                sql(
-                    """
+    suspend fun revoke(userId: UUID, type: Type, groupId: UUID? = null) =
+        session {
+            update(
+                    sql(
+                        """
                     UPDATE active_invites
                     SET revoked_at = now()
                     WHERE created_by_user_id = :user_id
                       AND type = :type::invite_type
                       AND group_id = :group_id;
                     """,
-                    "user_id" to userId,
-                    "type" to type.name,
-                    "group_id" to groupId,
+                        "user_id" to userId,
+                        "type" to type.name,
+                        "group_id" to groupId,
+                    )
                 )
-            )
-            .expectOne()
-    }
+                .expectOne()
+        }
 }

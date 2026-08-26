@@ -10,4 +10,4 @@ data class Membership(
     val shareRelationships: Boolean = SHARE_RELATIONSHIPS,
     val joinedAt: Instant?, // we do not initialize it in the constructor
     val leftAt: Instant? = null,
-)
+) : InternalId

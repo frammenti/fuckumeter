@@ -7,6 +7,8 @@ import dev.frammenti.fuckumeter.extensions.requireParameter
 import dev.frammenti.fuckumeter.extensions.requireUUID
 import dev.frammenti.fuckumeter.extensions.userId
 import dev.frammenti.fuckumeter.service.InviteService
+import dev.frammenti.fuckumeter.service.RedemptionService
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.AuthenticationStrategy
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
@@ -15,7 +17,10 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.post
 
-fun Routing.inviteRoutes(service: InviteService) {
+fun Routing.inviteRoutes(
+    service: InviteService,
+    redemptionService: RedemptionService,
+) {
     authenticate(strategy = AuthenticationStrategy.Optional) {
         post("/invites/{code}/redeem") {
             val code = call.requireParameter("code")
@@ -26,7 +31,13 @@ fun Routing.inviteRoutes(service: InviteService) {
             val principal = call.principal<UserDevicePrincipal>()
 
             val response =
-                service.redeem(code, principal?.userId, username, deviceName)
+                redemptionService.redeem(
+                    code,
+                    principal?.userId,
+                    username,
+                    deviceName,
+                )
+
             call.respond(response)
         }
     }
@@ -38,8 +49,8 @@ fun Routing.inviteRoutes(service: InviteService) {
             call.respond(response)
         }
 
-        post("/invites/group/{id}") {
-            val groupId = call.requireUUID("id")
+        post("/invites/group/{groupId}") {
+            val groupId = call.requireUUID("groupId")
 
             val response =
                 service.joinGroup(
@@ -56,10 +67,10 @@ fun Routing.inviteRoutes(service: InviteService) {
             call.respond(response)
         }
 
-        post("/invites/recovery/{id?}") {
+        post("/invites/recovery/{relationshipId?}") {
             val relationshipId =
                 try {
-                    call.requireUUID("id")
+                    call.requireUUID("relationshipId")
                 } catch (_: MissingParameterException) {
                     null
                 }
@@ -70,7 +81,7 @@ fun Routing.inviteRoutes(service: InviteService) {
                     relationshipId = relationshipId,
                 )
 
-            call.respond(response)
+            call.respond(response ?: HttpStatusCode.Created)
         }
     }
 }

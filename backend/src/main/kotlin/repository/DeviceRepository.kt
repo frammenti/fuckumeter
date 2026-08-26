@@ -106,7 +106,7 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
                     """
                     UPDATE devices
                     SET name = :name
-                    WHERE id = :id
+                    WHERE id = :id;
                     """,
                     "id" to id,
                     "name" to name,
@@ -121,7 +121,7 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
                     """
                     UPDATE devices
                     SET notification_enabled = :notification_enabled
-                    WHERE id = :id
+                    WHERE id = :id;
                     """,
                     "id" to id,
                     "notification_enabled" to enable,
@@ -159,7 +159,7 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
                     """
                     UPDATE devices
                     SET fcm_token = :fcm_token
-                    WHERE id = :id
+                    WHERE id = :id;
                     """,
                     "id" to id,
                     "fcm_token" to token,
@@ -174,7 +174,7 @@ class DeviceRepository(database: Database, private val hasher: HmacHasher) :
                     """
                     UPDATE devices
                     SET last_seen_at = :last_seen_at
-                    WHERE id = :id
+                    WHERE id = :id;
                     """,
                     "id" to id,
                     "last_seen_at" to time,

@@ -4,8 +4,14 @@ import io.ktor.http.HttpStatusCode
 
 sealed class ValidationException(
     code: String = "bad_request",
-    message: String = "Bad Request",
-) : ApiException(HttpStatusCode.BadRequest, code, message)
+    message: String = "The request is not valid and could not be processed",
+) :
+    ApiException(
+        status = HttpStatusCode.BadRequest,
+        code = code,
+        title = "Validation Error",
+        message = message,
+    )
 
 class MissingParameterException(parameter: String) :
     ValidationException(

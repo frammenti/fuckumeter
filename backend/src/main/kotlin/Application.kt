@@ -33,6 +33,7 @@ fun Application.module() {
     val groupRepository = GroupRepository(database)
     val inviteRepository =
         InviteRepository(database, inviteHasher, inviteCipher)
+    val recoveryRequestRepository = RecoveryRequestRepository(database)
     val relationshipRepository = RelationshipRepository(database)
     val userRepository = UserRepository(database)
 
@@ -44,6 +45,12 @@ fun Application.module() {
     val inviteService =
         InviteService(
             inviteRepository,
+            recoveryRequestRepository,
+            relationshipService,
+        )
+    val redemptionService =
+        RedemptionService(
+            inviteRepository,
             userService,
             deviceService,
             groupService,
@@ -54,6 +61,7 @@ fun Application.module() {
         deviceService,
         groupService,
         inviteService,
+        redemptionService,
         relationshipService,
         userService,
     )

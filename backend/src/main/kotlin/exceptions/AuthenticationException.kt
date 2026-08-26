@@ -4,13 +4,18 @@ import io.ktor.http.HttpStatusCode
 
 sealed class AuthenticationException(
     code: String = "unauthorized",
-    message: String = "Unauthorized",
-) : ApiException(HttpStatusCode.Unauthorized, code, message)
+    message: String = "You are not authorized to access this resource",
+) : ApiException(
+    status = HttpStatusCode.Unauthorized,
+    code = code,
+    title = "Authentication Error",
+    message = message,
+)
 
 class InvalidAccessTokenException :
     AuthenticationException(
         "invalid_access_token",
-        "Token is not valid or has expired",
+        "Access token is not valid or has expired",
     )
 
 class InvalidRefreshTokenException :

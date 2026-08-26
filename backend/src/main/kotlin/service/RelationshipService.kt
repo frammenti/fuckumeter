@@ -7,6 +7,14 @@ import dev.frammenti.fuckumeter.repository.RelationshipRepository
 import java.util.UUID
 
 class RelationshipService(private val relationships: RelationshipRepository) {
+    suspend fun get(id: UUID): RelationshipResponse {
+        val relationship =
+            relationships.find(id)
+                ?: throw ResourceNotFoundException("relationship")
+
+        return RelationshipResponse(relationship)
+    }
+
     suspend fun getPartner(relationshipId: UUID): UUID {
         return relationships.findPartner(relationshipId)
             ?: throw ResourceNotFoundException("relationship")
@@ -34,6 +42,6 @@ class RelationshipService(private val relationships: RelationshipRepository) {
             relationships.insert(relationship.second)
         }
 
-        return RelationshipResponse(relationshipId = relationship.first.id)
+        return RelationshipResponse(relationship.first)
     }
 }

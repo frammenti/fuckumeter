@@ -16,6 +16,6 @@ data class Relationship(
     val notificationThreshold: Int = NOTIFICATION_THRESHOLD,
     val createdAt: Instant = now(),
     val updatedAt: Instant? = null,
-    val deactivatedAt: Instant? = null,
-    val deletedAt: Instant? = null,
-)
+    override val deactivatedAt: Instant? = null,
+    override val deletedAt: Instant? = null,
+) : Deactivable
