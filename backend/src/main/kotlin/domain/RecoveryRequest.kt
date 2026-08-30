@@ -6,7 +6,8 @@ import java.time.Instant
 import java.util.UUID
 
 data class RecoveryRequest(
-    val relationshipId: UUID,
+    val userId: UUID,
+    val partnerId: UUID,
     val inviteId: Long? = null,
     val createdAt: Instant = now(),
     val revokedAt: Instant? = null,

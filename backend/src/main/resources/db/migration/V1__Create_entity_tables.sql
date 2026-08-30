@@ -11,7 +11,7 @@
 
 CREATE DOMAIN level AS integer
     NOT NULL
-    CHECK (VALUE BETWEEN 0 AND 100);
+    CONSTRAINT level_between_0_100 CHECK (VALUE BETWEEN 0 AND 100);
 
 CREATE TYPE invite_type AS ENUM (
     'INVITE_USER',
@@ -29,7 +29,12 @@ CREATE TABLE users (
     created_at      timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz,
     deactivated_at  timestamptz,
-    deleted_at      timestamptz
+    deleted_at      timestamptz,
+
+    CONSTRAINT users_update_after_create CHECK (updated_at >= created_at),
+    CONSTRAINT users_deactivate_after_create CHECK (deactivated_at >= created_at),
+    CONSTRAINT users_delete_requires_deactivate CHECK (deleted_at IS NULL OR deactivated_at IS NOT NULL),
+    CONSTRAINT users_delete_after_deactivate CHECK (deleted_at >= deactivated_at)
 );
 
 -- ---------------------------------------------------------------------------
@@ -47,11 +52,19 @@ CREATE TABLE relationships (
     updated_at              timestamptz,
     deactivated_at          timestamptz,
     deleted_at              timestamptz,
+
     -- Deferred so that the mutual references resolve at commit regardless of row order
     CONSTRAINT relationships_pair_fkey
         FOREIGN KEY (other_relationship_id) REFERENCES relationships (id)
         DEFERRABLE INITIALLY DEFERRED,
-    CONSTRAINT relationships_no_self_relation CHECK (user_id <> partner_id)
+
+    CONSTRAINT relationships_no_self_relation CHECK (user_id <> partner_id),
+
+    CONSTRAINT relationships_update_after_create CHECK (updated_at >= created_at),
+    CONSTRAINT relationships_deactivate_after_create CHECK (deactivated_at >= created_at),
+    -- Delete can cascade from partner deletion without deactivation
+    CONSTRAINT relationships_delete_after_create CHECK (deleted_at >= created_at),
+    CONSTRAINT relationships_delete_after_deactivate CHECK (deleted_at >= deactivated_at)
 );
 
 -- At most one active relationship per user-partner pair
@@ -72,7 +85,9 @@ CREATE TABLE groups (
     name                text        NOT NULL,
     updated_by_user_id  uuid        REFERENCES users (id) ON DELETE SET NULL,
     created_at          timestamptz NOT NULL DEFAULT now(),
-    updated_at          timestamptz
+    updated_at          timestamptz,
+
+    CONSTRAINT groups_update_after_create CHECK (updated_at >= created_at)
 );
 
 -- ---------------------------------------------------------------------------
@@ -84,7 +99,9 @@ CREATE TABLE memberships (
     group_id            uuid        NOT NULL REFERENCES groups (id) ON DELETE CASCADE,
     share_relationships boolean     NOT NULL,
     joined_at           timestamptz,
-    left_at             timestamptz
+    left_at             timestamptz,
+
+    CONSTRAINT memberships_leave_after_join CHECK (left_at >= joined_at)
 );
 
 -- At most one active membership per user-group
@@ -121,7 +138,9 @@ CREATE TABLE devices (
     fcm_token            text        UNIQUE,
     refresh_token_hash   bytea       NOT NULL,
     created_at           timestamptz NOT NULL DEFAULT now(),
-    last_seen_at         timestamptz
+    last_seen_at         timestamptz,
+
+    CONSTRAINT devices_see_after_create CHECK (last_seen_at >= created_at)
 );
 
 CREATE INDEX devices_user_id_idx ON devices (user_id);
@@ -136,38 +155,63 @@ CREATE TABLE invites (
     code_hash           bytea       NOT NULL UNIQUE,
     code_ciphertext     bytea       NOT NULL,
     code_nonce          bytea       NOT NULL,
-    type                invite_type NOT NULL
-                                    CHECK (
-                                        CASE type
-                                            WHEN 'INVITE_USER'
-                                                THEN group_id IS NULL
-                                                AND relationship_id IS NULL
-
-                                            WHEN 'LINK_DEVICE'
-                                                THEN group_id IS NULL
-                                                AND relationship_id IS NULL
-
-                                            WHEN 'JOIN_GROUP'
-                                                THEN group_id IS NOT NULL
-                                                AND relationship_id IS NULL
-
-                                            WHEN 'RECOVERY'
-                                                THEN group_id IS NULL
-                                                AND relationship_id IS NOT NULL
-                                            END
-                                    ),
+    type                invite_type NOT NULL,
+    partner_id          uuid        REFERENCES users (id) ON DELETE CASCADE,
     group_id            uuid        REFERENCES groups (id) ON DELETE CASCADE,
-    relationship_id     uuid        REFERENCES relationships (id) ON DELETE CASCADE,
     created_at          timestamptz NOT NULL DEFAULT now(),
     expires_at          timestamptz NOT NULL,
     consumed_at         timestamptz,
-    revoked_at          timestamptz
-);
+    revoked_at          timestamptz,
 
-CREATE INDEX invites_created_by_user_id_idx ON invites (created_by_user_id);
+    CONSTRAINT invites_type_requires_columns
+        CHECK (
+            CASE type
+                WHEN 'INVITE_USER'
+                    THEN partner_id IS NULL
+                    AND group_id IS NULL
+
+                WHEN 'LINK_DEVICE'
+                    THEN partner_id IS NULL
+                    AND group_id IS NULL
+
+                WHEN 'JOIN_GROUP'
+                    THEN partner_id IS NULL
+                    AND group_id IS NOT NULL
+
+                WHEN 'RECOVERY'
+                    THEN partner_id IS NOT NULL
+                    AND group_id IS NULL
+                END
+            ),
+
+    CONSTRAINT invites_consume_requires_by_user_and_time
+        CHECK (
+            (consumed_by_user_id IS NULL) = (consumed_at IS NULL)
+            ),
+
+    CONSTRAINT invites_expire_after_create CHECK (expires_at >= created_at),
+    CONSTRAINT invites_consume_after_create CHECK (consumed_at >= created_at),
+    CONSTRAINT invites_consume_before_expire CHECK (consumed_at < expires_at),
+    CONSTRAINT invites_revoke_after_create CHECK (revoked_at >= created_at)
+);
 
 -- For cleanup jobs
 CREATE INDEX invites_expires_at_idx ON invites (expires_at);
+
+-- For latest (unfiltered) invites
+CREATE INDEX invites_latest_idx
+    ON invites (created_by_user_id, type, group_id, id DESC);
+
+-- For the active invites view
+CREATE INDEX invites_active_idx
+    ON invites (expires_at)
+    WHERE revoked_at IS NULL
+        AND (consumed_at IS NULL OR type = 'JOIN_GROUP'::invite_type);
+
+-- There is at most one active invite, older ones are revoked
+CREATE UNIQUE INDEX invites_unrevoked_uq
+    ON invites (created_by_user_id, type, group_id)
+    WHERE revoked_at IS NULL;
 
 CREATE VIEW active_invites AS
     SELECT *
@@ -175,11 +219,6 @@ CREATE VIEW active_invites AS
     WHERE (consumed_at IS NULL OR type = 'JOIN_GROUP'::invite_type)
       AND revoked_at IS NULL
       AND expires_at > now();
-
--- There is at most one active invite, older ones are revoked
-CREATE UNIQUE INDEX invites_one_unrevoked
-    ON invites (created_by_user_id, type, group_id)
-    WHERE revoked_at IS NULL;
 
 CREATE FUNCTION revoke_previous_invite()
     RETURNS TRIGGER
@@ -190,14 +229,15 @@ BEGIN
     SET revoked_at = now()
     WHERE created_by_user_id = NEW.created_by_user_id
       AND type = NEW.type
-      AND group_id = NEW.group_id;
+      AND group_id IS NOT DISTINCT FROM NEW.group_id;
 
     RETURN NEW;
 END;
 $$;
 
 CREATE TRIGGER revoke_previous_invite
-    BEFORE INSERT ON invites
+    BEFORE INSERT
+    ON invites
     FOR EACH ROW
 EXECUTE FUNCTION revoke_previous_invite();
 
@@ -206,18 +246,28 @@ EXECUTE FUNCTION revoke_previous_invite();
 -- ---------------------------------------------------------------------------
 CREATE TABLE recovery_requests (
     id                    bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    relationship_id       uuid        NOT NULL REFERENCES relationships (id) ON DELETE CASCADE,
+    user_id               uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    partner_id            uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     invite_id             bigint      REFERENCES invites (id) ON DELETE CASCADE,
     created_at            timestamptz NOT NULL DEFAULT now(),
     revoked_at            timestamptz,
-    revoked_by_partner_at timestamptz
+    revoked_by_partner_at timestamptz,
+
+    CONSTRAINT recovery_requests_revoke_after_create CHECK (revoked_at >= created_at),
+    CONSTRAINT recovery_requests_partner_revoke_after_create CHECK (revoked_by_partner_at >= created_at)
 );
 
--- At most one open recovery request per relationship:
+-- At most one open recovery request per user:
 -- the user must revoke the request before submitting a new one
-CREATE UNIQUE INDEX recovery_requests_open_uq
-    ON recovery_requests (relationship_id)
+CREATE UNIQUE INDEX recovery_requests_user_unrevoked_uq
+    ON recovery_requests (user_id)
     WHERE revoked_at IS NULL;
 
-CREATE INDEX recovery_requests_relationship_id_idx
-    ON recovery_requests (relationship_id);
+-- At most one open recovery request per target partner,
+-- doesn't need active revocation by creating user
+CREATE UNIQUE INDEX recovery_requests_partner_unrevoked_uq
+    ON recovery_requests (partner_id)
+    WHERE revoked_at IS NULL
+      OR revoked_by_partner_at IS NULL;
+
+

@@ -1,8 +1,9 @@
 package dev.frammenti.fuckumeter.routing
 
 import dev.frammenti.fuckumeter.auth.UserDevicePrincipal
+import dev.frammenti.fuckumeter.domain.Invite.*
 import dev.frammenti.fuckumeter.dto.RedemptionRequest
-import dev.frammenti.fuckumeter.exceptions.MissingParameterException
+import dev.frammenti.fuckumeter.extensions.optionalUUID
 import dev.frammenti.fuckumeter.extensions.requireParameter
 import dev.frammenti.fuckumeter.extensions.requireUUID
 import dev.frammenti.fuckumeter.extensions.userId
@@ -15,6 +16,7 @@ import io.ktor.server.auth.principal
 import io.ktor.server.request.receiveNullable
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Routing
+import io.ktor.server.routing.delete
 import io.ktor.server.routing.post
 
 fun Routing.inviteRoutes(
@@ -67,21 +69,48 @@ fun Routing.inviteRoutes(
             call.respond(response)
         }
 
-        post("/invites/recovery/{relationshipId?}") {
-            val relationshipId =
-                try {
-                    call.requireUUID("relationshipId")
-                } catch (_: MissingParameterException) {
-                    null
-                }
+        post("/invites/recovery/{partnerId?}") {
+            val partnerId = call.optionalUUID("partnerId")
 
             val response =
                 service.recovery(
                     userId = call.userId,
-                    relationshipId = relationshipId,
+                    partnerId = partnerId,
                 )
 
             call.respond(response ?: HttpStatusCode.Created)
         }
+    }
+
+    delete("/invites/user") {
+        service.revoke(call.userId, InviteUser.type)
+
+        call.respond(HttpStatusCode.NoContent)
+    }
+
+    delete("/invites/group/{groupId}") {
+        val groupId = call.requireUUID("groupId")
+
+        service.revoke(call.userId, JoinGroup.type, groupId)
+
+        call.respond(HttpStatusCode.NoContent)
+    }
+
+    delete("/invites/device") {
+        service.revoke(call.userId, LinkDevice.type)
+
+        call.respond(HttpStatusCode.NoContent)
+    }
+
+    delete("/invites/recovery") {
+        service.revokeRecoveryByUser(call.userId)
+
+        call.respond(HttpStatusCode.NoContent)
+    }
+
+    delete("/invites/recovery-request") {
+        service.revokeRecoveryByPartner(call.userId)
+
+        call.respond(HttpStatusCode.NoContent)
     }
 }

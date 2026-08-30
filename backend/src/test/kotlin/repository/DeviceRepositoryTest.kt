@@ -4,7 +4,10 @@ import dev.frammenti.fuckumeter.domain.Device
 import dev.frammenti.fuckumeter.repository.DeviceRepository
 import dev.frammenti.fuckumeter.shared.Time.now
 import fixtures.TestCrypto.hasher
-import fixtures.TestFixtures.getProperty
+import fixtures.TestFixtures.getBoolean
+import fixtures.TestFixtures.getByteArray
+import fixtures.TestFixtures.getInstant
+import fixtures.TestFixtures.getString
 import fixtures.TestFixtures.insertDevice
 import fixtures.TestFixtures.insertUser
 import java.util.UUID
@@ -88,9 +91,7 @@ class DeviceRepositoryTest : RepositoryTest() {
     suspend fun `belongsToUser is false for unknown device`() {
         val userId = insertUser()
 
-        assertFalse(
-            repository.belongsToUser(UUID.randomUUID(), userId)
-        )
+        assertFalse(repository.belongsToUser(UUID.randomUUID(), userId))
     }
 
     @Test
@@ -99,7 +100,7 @@ class DeviceRepositoryTest : RepositoryTest() {
 
         repository.rename(id, "Phone")
 
-        assertEquals("Phone", getProperty("devices", "name", id))
+        assertEquals("Phone", getString("devices", "name", id))
     }
 
     @Test
@@ -115,9 +116,7 @@ class DeviceRepositoryTest : RepositoryTest() {
 
         repository.enableNotification(id, true)
 
-        assertTrue(
-            getProperty("devices", "notification_enabled", id) { boolean(it) }!!
-        )
+        assertTrue(getBoolean("devices", "notification_enabled", id)!!)
     }
 
     @Test
@@ -142,7 +141,7 @@ class DeviceRepositoryTest : RepositoryTest() {
         assertEquals(userId, changed)
         assertArrayEquals(
             hasher.hash("new-token"),
-            getProperty("devices", "refresh_token_hash", id) { bytes(it) },
+            getByteArray("devices", "refresh_token_hash", id),
         )
     }
 
@@ -168,7 +167,7 @@ class DeviceRepositoryTest : RepositoryTest() {
 
         assertEquals(
             "new-token",
-            getProperty("devices", "fcm_token", id),
+            getString("devices", "fcm_token", id),
         )
     }
 
@@ -189,7 +188,7 @@ class DeviceRepositoryTest : RepositoryTest() {
 
         assertEquals(
             now,
-            getProperty("devices", "last_seen_at", id) { instantOrNull(it) },
+            getInstant("devices", "last_seen_at", id),
         )
     }
 

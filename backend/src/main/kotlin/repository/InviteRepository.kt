@@ -6,9 +6,11 @@ import dev.frammenti.fuckumeter.domain.Invite
 import dev.frammenti.fuckumeter.domain.Invite.*
 import dev.frammenti.fuckumeter.extensions.expectNotNull
 import dev.frammenti.fuckumeter.extensions.expectOne
+import dev.frammenti.fuckumeter.extensions.insert
 import dev.frammenti.fuckumeter.security.AesGcmCipher
 import dev.frammenti.fuckumeter.security.Encrypted
 import dev.frammenti.fuckumeter.security.HmacHasher
+import java.io.Serializable
 import java.util.UUID
 import kotliquery.Row
 
@@ -17,34 +19,37 @@ class InviteRepository(
     private val hasher: HmacHasher,
     private val cipher: AesGcmCipher,
 ) : Repository(database) {
-    private fun InviteWithCode.toParams(): Array<Pair<String, Any?>> {
-        val additionalProperties =
-            when (this.invite) {
-                is InviteUser,
-                is LinkDevice -> emptyArray()
-                is JoinGroup -> arrayOf("group_id" to invite.groupId)
-                is Recovery ->
-                    arrayOf("relationship_id" to invite.relationshipId)
-            }
-
+    private fun <I : Invite> WithCode<I>.toParams():
+        Array<Pair<String, Serializable?>> {
         val (ciphertext, nonce) = cipher.encrypt(code)
 
-        return arrayOf<Pair<String, Any?>>(
-                "created_by_user_id" to invite.createdBy,
-                "consumed_by_user_id" to invite.consumedBy,
-                "code_hash" to hasher.hash(code),
-                "code_ciphertext" to ciphertext,
-                "code_nonce" to nonce,
-                "type" to invite.type.name,
-                "created_at" to invite.createdAt,
-                "expires_at" to invite.expiresAt,
-                "consumed_at" to invite.consumedAt,
-                "revoked_at" to invite.revokedAt,
-            )
-            .plus(additionalProperties)
+        return arrayOf(
+            "created_by_user_id" to invite.createdBy,
+            "consumed_by_user_id" to invite.consumedBy,
+            "code_hash" to hasher.hash(code),
+            "code_ciphertext" to ciphertext,
+            "code_nonce" to nonce,
+            "type" to invite.type.name,
+            "created_at" to invite.createdAt,
+            "expires_at" to invite.expiresAt,
+            "consumed_at" to invite.consumedAt,
+            "revoked_at" to invite.revokedAt,
+        ) +
+            when (invite) {
+                is InviteUser,
+                is LinkDevice ->
+                    arrayOf("partner_id" to null, "group_id" to null)
+                is JoinGroup ->
+                    arrayOf("partner_id" to null, "group_id" to invite.groupId)
+                is Recovery ->
+                    arrayOf(
+                        "partner_id" to invite.partnerId,
+                        "group_id" to null,
+                    )
+            }
     }
 
-    private fun Row.toInvite(): Invite {
+    private fun <I : Invite> Row.toInvite(): I {
         val type = Type.valueOf(string("type"))
         val lifecycle =
             Lifecycle(
@@ -56,6 +61,7 @@ class InviteRepository(
                 instantOrNull("revoked_at"),
             )
 
+        @Suppress("UNCHECKED_CAST")
         return when (type) {
             Type.INVITE_USER -> InviteUser(lifecycle)
             Type.JOIN_GROUP ->
@@ -66,25 +72,26 @@ class InviteRepository(
             Type.LINK_DEVICE -> LinkDevice(lifecycle)
             Type.RECOVERY ->
                 Recovery(
-                    uuid("relationship_id"),
+                    uuid("partner_id"),
                     lifecycle,
                 )
         }
+            as I
     }
 
-    private fun Row.toInviteWithCode(): InviteWithCode {
-        val invite = toInvite()
+    private fun <I : Invite> Row.toInviteWithCode(): WithCode<I> {
+        val invite = toInvite<I>()
         val encrypted =
             Encrypted(
                 bytes("code_ciphertext"),
                 bytes("code_nonce"),
             )
 
-        return InviteWithCode(invite, cipher.decrypt(encrypted))
+        return WithCode(invite, cipher.decrypt(encrypted))
     }
 
-    private fun Row.toInviteWithId(): WithId<Invite> {
-        val invite = toInvite()
+    private fun <I : Invite> Row.toInviteWithId(): WithId<I> {
+        val invite = toInvite<I>()
         return WithId(invite, long("id"))
     }
 
@@ -94,7 +101,7 @@ class InviteRepository(
                 """
                 SELECT *
                 FROM invites
-                WHERE id = :id
+                WHERE id = :id;
                 """,
                 "id" to id,
             )
@@ -109,7 +116,7 @@ class InviteRepository(
                 """
                 SELECT *
                 FROM active_invites
-                WHERE code_hash = :code_hash
+                WHERE code_hash = :code_hash;
                 """,
                 "code_hash" to hasher.hash(code),
             )
@@ -118,10 +125,11 @@ class InviteRepository(
         }
     }
 
-    suspend fun findLatestByUser(
+    suspend fun <I : Invite> findLatestByUser(
         userId: UUID,
-        type: Type,
-    ): InviteWithCode? = session {
+        type: TypeOf<I>,
+        groupId: UUID? = null,
+    ): WithCode<I>? = session {
         single(
             sql(
                 """
@@ -129,11 +137,13 @@ class InviteRepository(
                     FROM invites
                     WHERE created_by_user_id = :user_id
                       AND type = :type::invite_type
+                      AND group_id IS NOT DISTINCT FROM :group_id;
                     ORDER BY id DESC
                     LIMIT 1;
                     """,
                 "user_id" to userId,
                 "type" to type.name,
+                "group_id" to groupId,
             )
         ) { row ->
             row.toInviteWithCode()
@@ -144,9 +154,10 @@ class InviteRepository(
         list(
             sql(
                 """
-                SELECT *
+                SELECT DISTINCT ON (type, group_id) *
                 FROM invites
                 WHERE created_by_user_id = :user_id
+                ORDER BY type, group_id, id DESC;
                 """,
                 "user_id" to userId,
             )
@@ -155,20 +166,20 @@ class InviteRepository(
         }
     }
 
-    suspend fun insert(invite: InviteWithCode): Long = session {
-        updateAndReturnGeneratedKey(
+    suspend fun insert(invite: WithCode<Invite>): Long = session {
+        insert(
                 sql(
                     """
                     INSERT INTO invites (
                         created_by_user_id, consumed_by_user_id,
                         code_hash, code_ciphertext, code_nonce,
-                        type, group_id, recovery_request_id,
+                        type, partner_id, group_id,
                         created_at, expires_at, consumed_at, revoked_at
                     )
                     VALUES (
                         :created_by_user_id, :consumed_by_user_id,
                         :code_hash, :code_ciphertext, :code_nonce,
-                        :type::invite_type, :group_id, :recovery_request_id,
+                        :type::invite_type, :partner_id, :group_id,
                         :created_at, :expires_at, :consumed_at, :revoked_at
                     );
                     """,
@@ -194,22 +205,25 @@ class InviteRepository(
             .expectOne()
     }
 
-    suspend fun revoke(userId: UUID, type: Type, groupId: UUID? = null) =
-        session {
-            update(
-                    sql(
-                        """
+    suspend fun revoke(
+        userId: UUID,
+        type: TypeOf<Invite>,
+        groupId: UUID? = null,
+    ) = session {
+        update(
+                sql(
+                    """
                     UPDATE active_invites
                     SET revoked_at = now()
                     WHERE created_by_user_id = :user_id
                       AND type = :type::invite_type
-                      AND group_id = :group_id;
+                      AND group_id IS NOT DISTINCT FROM :group_id;
                     """,
-                        "user_id" to userId,
-                        "type" to type.name,
-                        "group_id" to groupId,
-                    )
+                    "user_id" to userId,
+                    "type" to type.name,
+                    "group_id" to groupId,
                 )
-                .expectOne()
-        }
+            )
+            .expectOne()
+    }
 }

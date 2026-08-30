@@ -13,7 +13,7 @@ import java.time.temporal.TemporalAmount
 import java.util.UUID
 
 sealed class Invite(protected open val lifecycle: Lifecycle) : InternalId {
-    abstract val type: Type
+    abstract val type: TypeOf<Invite>
     open val code = { Code.generate(INVITE_CODE_LENGTH) }
 
     val createdBy: UUID
@@ -37,15 +37,15 @@ sealed class Invite(protected open val lifecycle: Lifecycle) : InternalId {
     data class Lifecycle(
         val createdBy: UUID,
         val consumedBy: UUID? = null,
-        val createdAt: Instant,
+        val createdAt: Instant = now(),
         val expiresAt: Instant,
         val consumedAt: Instant? = null,
         val revokedAt: Instant? = null,
     ) {
         constructor(
             createdBy: UUID,
-            createdAt: Instant = now(),
             expiry: TemporalAmount,
+            createdAt: Instant = now(),
         ) : this(
             createdBy = createdBy,
             createdAt = createdAt,
@@ -74,9 +74,24 @@ sealed class Invite(protected open val lifecycle: Lifecycle) : InternalId {
         REQUIRES_DEVICE,
     }
 
+    /**
+     * Wrapper around [Type] enum values to be passed to generic functions
+     * parametrized on [Invite] subclasses.
+     */
+    @JvmInline
+    value class TypeOf<out I : Invite>(val value: Type) {
+        val name
+            get() = value.name
+
+        val ordinal
+            get() = value.ordinal
+
+        override fun toString() = value.toString()
+    }
+
     fun status(): Status {
         return when {
-            this.consumedAt != null && this.type != Type.JOIN_GROUP ->
+            this.consumedAt != null && this.type != JoinGroup.type ->
                 Status.CONSUMED
             this.revokedAt != null -> Status.REVOKED
             this.expiresAt <= now() -> Status.EXPIRED
@@ -89,8 +104,6 @@ sealed class Invite(protected open val lifecycle: Lifecycle) : InternalId {
         val code: String = invite.code(),
     )
 
-    typealias InviteWithCode = WithCode<Invite>
-
     data class InviteUser(override val lifecycle: Lifecycle) :
         Invite(lifecycle) {
         override val type = Companion.type
@@ -100,7 +113,7 @@ sealed class Invite(protected open val lifecycle: Lifecycle) : InternalId {
         ) : this(Lifecycle(createdBy = createdBy, expiry = expiry))
 
         companion object {
-            val type = Type.INVITE_USER
+            val type = TypeOf<InviteUser>(Type.INVITE_USER)
             val expiry = INVITE_USER_EXPIRY
         }
     }
@@ -117,7 +130,7 @@ sealed class Invite(protected open val lifecycle: Lifecycle) : InternalId {
         ) : this(groupId, Lifecycle(createdBy = createdBy, expiry = expiry))
 
         companion object {
-            val type = Type.JOIN_GROUP
+            val type = TypeOf<JoinGroup>(Type.JOIN_GROUP)
             val expiry = JOIN_GROUP_EXPIRY
         }
     }
@@ -131,13 +144,13 @@ sealed class Invite(protected open val lifecycle: Lifecycle) : InternalId {
         ) : this(Lifecycle(createdBy = createdBy, expiry = expiry))
 
         companion object {
-            val type = Type.LINK_DEVICE
+            val type = TypeOf<LinkDevice>(Type.LINK_DEVICE)
             val expiry = LINK_DEVICE_EXPIRY
         }
     }
 
     data class Recovery(
-        val relationshipId: UUID,
+        val partnerId: UUID,
         override val lifecycle: Lifecycle,
     ) : Invite(lifecycle) {
         override val type = Companion.type
@@ -145,14 +158,14 @@ sealed class Invite(protected open val lifecycle: Lifecycle) : InternalId {
 
         constructor(
             createdBy: UUID,
-            relationshipId: UUID,
+            partnerId: UUID,
         ) : this(
-            relationshipId,
+            partnerId,
             Lifecycle(createdBy = createdBy, expiry = expiry),
         )
 
         companion object {
-            val type = Type.RECOVERY
+            val type = TypeOf<Recovery>(Type.RECOVERY)
             val expiry = RECOVERY_EXPIRY
         }
     }

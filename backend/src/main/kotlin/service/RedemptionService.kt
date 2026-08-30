@@ -87,31 +87,32 @@ class RedemptionService(
         }
     }
 
+    private inline fun <T> catchObfuscate(block: () -> T): T =
+        try {
+            block()
+        } catch (_: ResourceNotFoundException) {
+            throw InvalidCodeException()
+        }
+
+    private inline fun <T> catchConcurrent(block: () -> T): T =
+        try {
+            block()
+        } catch (_: NoSuchElementException) {
+            throw ConcurrentUpdateException("invite", "redeemed")
+        }
+
     private suspend fun validate(
         code: String
-    ): Pair<Invite, RedemptionContext> {
+    ): Pair<RedemptionContext, Invite> {
         val (invite, id) =
             invites.findByCode(code) ?: throw InvalidCodeException()
         if (invite.status() != Status.ACTIVE) throw InvalidCodeException()
 
-        val creator =
-            try {
-                userService.get(invite.createdBy)
-            } catch (_: ResourceNotFoundException) {
-                throw InvalidCodeException()
-            }
+        val creator = catchObfuscate { userService.get(invite.createdBy) }
         if (creator.status != Deactivable.Status.ACTIVE)
             throw InvalidCodeException()
 
-        return invite to RedemptionContext(id, creator)
-    }
-
-    private suspend fun consumeInviteOrThrow(id: Long, userId: UUID) {
-        try {
-            invites.consume(id, userId)
-        } catch (_: NoSuchElementException) {
-            throw ConcurrentUpdateException("invite", "redeemed")
-        }
+        return RedemptionContext(id, creator) to invite
     }
 
     private suspend fun redeemLinkDevice(
@@ -124,7 +125,9 @@ class RedemptionService(
             return PendingLinkDeviceRedemptionResponse(creator.name)
 
         val credentials = invites.transaction {
-            consumeInviteOrThrow(inviteId, creator.id)
+            // Perform the less expensive operation first,
+            // everything is always rolled back
+            catchConcurrent { invites.consume(inviteId, creator.id) }
             with(device) { deviceService.create(creator.id) }
         }
 
@@ -134,17 +137,11 @@ class RedemptionService(
     private suspend fun redeemRecovery(
         context: RedemptionContext,
         device: RedeemingDevice,
-        relationshipId: UUID,
+        userId: UUID,
     ): RedemptionResponse {
         val (inviteId) = context
 
-        val user =
-            try {
-                val partnerId = relationshipService.getPartner(relationshipId)
-                userService.get(partnerId)
-            } catch (_: ResourceNotFoundException) {
-                throw InvalidCodeException()
-            }
+        val user = catchObfuscate { userService.get(userId) }
 
         // We do not check user status because recovery must
         // be possible even for deactivated users
@@ -153,7 +150,7 @@ class RedemptionService(
             return PendingRecoveryRedemptionResponse(user.name)
 
         val credentials = invites.transaction {
-            consumeInviteOrThrow(inviteId, user.id)
+            catchConcurrent { invites.consume(inviteId, user.id) }
             with(device) { deviceService.create(user.id) }
         }
 
@@ -172,8 +169,9 @@ class RedemptionService(
             invites.transaction {
                 val (userId, credentials) = with(user) { userService.create() }
 
-                consumeInviteOrThrow(inviteId, userId)
+                catchConcurrent { invites.consume(inviteId, userId) }
 
+                // Let error bubble if relationship already exists
                 val (relationshipId) =
                     relationshipService.createPair(userId to creator.id)
 
@@ -192,12 +190,9 @@ class RedemptionService(
     ): RedemptionResponse {
         val (inviteId, creator) = context
 
-        val groupName =
-            try {
-                groupService.getName(groupId, creator.id)
-            } catch (_: ResourceNotFoundException) {
-                throw InvalidCodeException()
-            }
+        val groupName = catchObfuscate {
+            groupService.getName(groupId, creator.id)
+        }
 
         return if (user is RedeemingUser.Pending)
             PendingJoinGroupRedemptionResponse(groupName)
@@ -205,8 +200,9 @@ class RedemptionService(
             invites.transaction {
                 val (userId, credentials) = with(user) { userService.create() }
 
-                consumeInviteOrThrow(inviteId, userId)
+                catchConcurrent { invites.consume(inviteId, userId) }
 
+                // Let error bubble if user is already part of the group
                 groupService.addMember(userId, groupId)
 
                 JoinGroupRedemptionResponse(
@@ -223,12 +219,13 @@ class RedemptionService(
         username: String?,
         deviceName: String?,
     ): RedemptionResponse {
-        val (invite, context) = validate(code)
+        val (context, invite) = validate(code)
 
         return when (invite) {
             is LinkDevice ->
                 redeemLinkDevice(
                     context,
+                    // Throws when authenticated (userId != null)
                     RedeemingDevice.resolve(
                         userId,
                         deviceName,
@@ -238,11 +235,12 @@ class RedemptionService(
             is Recovery ->
                 redeemRecovery(
                     context,
+                    // Throws when authenticated (userId != null)
                     RedeemingDevice.resolve(
                         userId,
                         deviceName,
                     ),
-                    invite.relationshipId,
+                    invite.partnerId,
                 )
 
             is InviteUser ->

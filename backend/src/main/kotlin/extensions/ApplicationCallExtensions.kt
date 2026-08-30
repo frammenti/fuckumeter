@@ -17,10 +17,21 @@ fun ApplicationCall.requireParameter(parameter: String): String =
     parameters[parameter] ?: throw MissingParameterException(parameter)
 
 fun ApplicationCall.requireUUID(parameter: String): UUID =
-    try {
-        UUID.fromString(requireParameter(parameter))
-    } catch (_: IllegalArgumentException) {
-        throw InvalidParameterException(parameter, "UUID")
+    requireParameter(parameter).let {
+        try {
+            UUID.fromString(it)
+        } catch (_: IllegalArgumentException) {
+            throw InvalidParameterException(parameter, "UUID")
+        }
+    }
+
+fun ApplicationCall.optionalUUID(parameter: String): UUID? =
+    parameters[parameter]?.let {
+        try {
+            UUID.fromString(it)
+        } catch (_: IllegalArgumentException) {
+            throw InvalidParameterException(parameter, "UUID")
+        }
     }
 
 fun ApplicationCall.requireAnonymous() {

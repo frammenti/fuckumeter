@@ -34,6 +34,6 @@ class ConcurrentUpdateException(
 class AnotherRecoveryInviteException(causeId: UUID) :
     ConflictException(
         "another_recovery_invite",
-        "There is pending recovery invite for another relationship, revoke it to proceed",
+        "There is pending recovery invite for another partner, revoke it to proceed",
         causeId,
     )

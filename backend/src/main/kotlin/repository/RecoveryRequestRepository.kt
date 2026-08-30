@@ -5,13 +5,15 @@ import dev.frammenti.fuckumeter.domain.InternalId.WithId
 import dev.frammenti.fuckumeter.domain.RecoveryRequest
 import dev.frammenti.fuckumeter.extensions.expectNotNull
 import dev.frammenti.fuckumeter.extensions.expectOne
+import dev.frammenti.fuckumeter.extensions.insert
 import java.util.UUID
 import kotliquery.Row
 
 class RecoveryRequestRepository(database: Database) : Repository(database) {
     private fun RecoveryRequest.toParams() =
         arrayOf(
-            "relationship_id" to relationshipId,
+            "user_id" to userId,
+            "partner_id" to partnerId,
             "invite_id" to inviteId,
             "created_at" to createdAt,
             "revoked_at" to revokedAt,
@@ -20,7 +22,8 @@ class RecoveryRequestRepository(database: Database) : Repository(database) {
 
     private fun Row.toRecoveryRequest() =
         RecoveryRequest(
-            relationshipId = uuid("relationship_id"),
+            userId = uuid("user_id"),
+            partnerId = uuid("partner_id"),
             inviteId = longOrNull("invite_id"),
             createdAt = instant("created_at"),
             revokedAt = instantOrNull("revoked_at"),
@@ -32,37 +35,33 @@ class RecoveryRequestRepository(database: Database) : Repository(database) {
         return WithId(request, long("id"))
     }
 
-    suspend fun findLatestByUser(userId: UUID): WithId<RecoveryRequest>? =
-        session {
-            single(
-                sql(
-                    """
-                    SELECT q.*
-                    FROM recovery_requests q JOIN relationships r
-                    ON q.relationship_id = r.id
-                    WHERE r.user_id = :user_id
-                      AND q.revoked_at IS NULL
-                    ORDER BY id DESC
-                    LIMIT 1;
+    suspend fun findByUser(userId: UUID): WithId<RecoveryRequest>? = session {
+        single(
+            sql(
+                """
+                    SELECT *
+                    FROM recovery_requests
+                    WHERE user_id = :user_id
+                      AND revoked_at IS NULL;
                     """,
-                    "user_id" to userId,
-                )
-            ) { row ->
-                row.toRecoveryRequestWithId()
-            }
+                "user_id" to userId,
+            )
+        ) { row ->
+            row.toRecoveryRequestWithId()
         }
+    }
 
     suspend fun insert(request: RecoveryRequest): Long = session {
-        updateAndReturnGeneratedKey(
+        insert(
                 sql(
                     """
                     INSERT INTO recovery_requests (
-                        relationship_id, invite_id, created_at,
-                        revoked_at, revoked_by_partner_at,
+                        user_id, partner_id, invite_id,
+                        created_at, revoked_at, revoked_by_partner_at,
                     )
                     VALUES (
-                        :relationship_id, :invite_id, :created_at,
-                        :revoked_at, :revoked_by_partner_at
+                        :user_id, :partner_id, :invite_id,
+                        :created_at, :revoked_at, :revoked_by_partner_at
                     );
                     """,
                     *request.toParams(),
@@ -82,6 +81,37 @@ class RecoveryRequestRepository(database: Database) : Repository(database) {
                     """,
                     "id" to requestId,
                     "invite_id" to inviteId,
+                )
+            )
+            .expectOne()
+    }
+
+    suspend fun revokeByUser(userId: UUID) = session {
+        update(
+                sql(
+                    """
+                    UPDATE recovery_requests
+                    SET revoked_at = now()
+                    WHERE user_id = :userId
+                      AND revoked_at IS NULL;
+                    """,
+                    "user_id" to userId,
+                )
+            )
+            .expectOne()
+    }
+
+    suspend fun revokeByPartner(partnerId: UUID) = session {
+        update(
+                sql(
+                    """
+                    UPDATE recovery_requests
+                    SET revoked_by_partner_at = now()
+                    WHERE partner_id = :partnerId
+                      AND revoked_at IS NULL
+                      AND revoked_by_partner_at IS NULL;
+                    """,
+                    "partner_id" to partnerId,
                 )
             )
             .expectOne()

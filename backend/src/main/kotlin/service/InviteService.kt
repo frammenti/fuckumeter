@@ -6,7 +6,6 @@ import dev.frammenti.fuckumeter.domain.Invite.*
 import dev.frammenti.fuckumeter.domain.RecoveryRequest
 import dev.frammenti.fuckumeter.dto.InviteResponse
 import dev.frammenti.fuckumeter.exceptions.*
-import dev.frammenti.fuckumeter.extensions.expect
 import dev.frammenti.fuckumeter.repository.InviteRepository
 import dev.frammenti.fuckumeter.repository.RecoveryRequestRepository
 import java.util.UUID
@@ -16,20 +15,10 @@ class InviteService(
     private val recoveryRequests: RecoveryRequestRepository,
     private val relationshipService: RelationshipService,
 ) {
-    private suspend fun <I : Invite> getOrCreateInvite(
-        userId: UUID,
+    private suspend fun <I : Invite> create(
+        previous: WithCode<I>?,
         factory: () -> I,
     ): InviteResponse {
-        val invite = factory()
-
-        if (invite is Recovery)
-            error(
-                "Recovery invites can only be generated via recovery requests"
-            )
-
-        val previous =
-            invites.findLatestByUser(userId, invite.type).expect<WithCode<I>>()
-
         val previousStatus = previous?.invite?.status() ?: Status.NONE
 
         if (previousStatus == Status.ACTIVE) {
@@ -40,7 +29,7 @@ class InviteService(
             )
         }
 
-        val new = WithCode(invite)
+        val new = WithCode(factory())
 
         invites.insert(new)
 
@@ -51,41 +40,47 @@ class InviteService(
         )
     }
 
-    suspend fun inviteUser(userId: UUID) =
-        getOrCreateInvite(userId) {
+    suspend fun inviteUser(userId: UUID): InviteResponse {
+        val latest = invites.findLatestByUser(userId, InviteUser.type)
+
+        return create(latest) {
             InviteUser(createdBy = userId)
         }
+    }
 
-    suspend fun joinGroup(userId: UUID, groupId: UUID) =
-        getOrCreateInvite(userId) {
+    suspend fun joinGroup(userId: UUID, groupId: UUID): InviteResponse {
+        val latest = invites.findLatestByUser(userId, JoinGroup.type, groupId)
+
+        return create(latest) {
             JoinGroup(
                 createdBy = userId,
                 groupId = groupId,
             )
         }
+    }
 
-    suspend fun linkDevice(userId: UUID) =
-        getOrCreateInvite(userId) {
+    suspend fun linkDevice(userId: UUID): InviteResponse {
+        val latest = invites.findLatestByUser(userId, LinkDevice.type)
+
+        return create(latest) {
             LinkDevice(createdBy = userId)
         }
+    }
 
     suspend fun recovery(
         userId: UUID,
-        relationshipId: UUID?,
+        partnerId: UUID?,
     ): InviteResponse? {
-        val latest = recoveryRequests.findLatestByUser(userId)
+        val latest = recoveryRequests.findByUser(userId)
 
         if (latest == null) {
-            if (relationshipId == null)
-                throw MissingParameterException("relationshipId")
+            if (partnerId == null) throw MissingParameterException("partnerId")
 
             val relationship =
-                relationshipService.get(relationshipId) // throws if not found
-
-            if (relationship.userId != userId)
-                throw ResourceNotFoundException(
-                    "relationship"
-                ) // opaque response
+                relationshipService.getByPartners(
+                    userId,
+                    partnerId,
+                ) // throws if not found
 
             if (relationship.status != Deactivable.Status.ACTIVE)
                 throw PermissionDeniedException(
@@ -93,7 +88,7 @@ class InviteService(
                 )
 
             try {
-                recoveryRequests.insert(RecoveryRequest(relationshipId))
+                recoveryRequests.insert(RecoveryRequest(userId, partnerId))
             } catch (_: IllegalStateException) {
                 throw ConcurrentUpdateException(
                     "recovery request",
@@ -105,11 +100,9 @@ class InviteService(
         } else {
             val (request, id) = latest
 
-            if (
-                relationshipId != null &&
-                    relationshipId != request.relationshipId
-            )
-                throw AnotherRecoveryInviteException(request.relationshipId)
+            if (partnerId != null && partnerId != request.partnerId) throw AnotherRecoveryInviteException(
+                    request.partnerId
+                )
 
             if (request.revokedByPartnerAt != null)
                 throw InviteRevokedByPartnerException()
@@ -118,7 +111,7 @@ class InviteService(
                 if (request.shouldWait())
                     throw RecoveryWaitException(request.waitEndsAt)
 
-                val new = WithCode(Recovery(userId, request.relationshipId))
+                val new = WithCode(Recovery(userId, request.partnerId))
 
                 invites.transaction {
                     val inviteId = invites.insert(new)
@@ -162,4 +155,30 @@ class InviteService(
             }
         }
     }
+
+    suspend fun revoke(
+        userId: UUID,
+        type: TypeOf<Invite>,
+        groupId: UUID? = null,
+    ) {
+        try {
+            invites.revoke(userId, type, groupId)
+        } catch (_: NoSuchElementException) {
+            throw ResourceNotFoundException("invite")
+        }
+    }
+
+    suspend fun revokeRecoveryByUser(userId: UUID) =
+        try {
+            recoveryRequests.revokeByUser(userId)
+        } catch (_: NoSuchElementException) {
+            throw ResourceNotFoundException("invite")
+        }
+
+    suspend fun revokeRecoveryByPartner(partnerId: UUID) =
+        try {
+            recoveryRequests.revokeByPartner(partnerId)
+        } catch (_: NoSuchElementException) {
+            throw ResourceNotFoundException("invite")
+        }
 }

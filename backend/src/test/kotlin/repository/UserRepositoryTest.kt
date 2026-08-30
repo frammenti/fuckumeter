@@ -3,8 +3,10 @@ package repository
 import dev.frammenti.fuckumeter.domain.User
 import dev.frammenti.fuckumeter.repository.UserRepository
 import dev.frammenti.fuckumeter.shared.Time.now
-import fixtures.TestFixtures.getProperty
+import fixtures.TestFixtures.getInstant
+import fixtures.TestFixtures.getString
 import fixtures.TestFixtures.insertUser
+import java.sql.SQLException
 import java.util.UUID
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
@@ -25,6 +27,18 @@ class UserRepositoryTest : RepositoryTest() {
     }
 
     @Test
+    suspend fun `insert throws for duplicated ids`() {
+        val id = UUID.randomUUID()
+        val user1 = User(id, "User 1")
+        val user2 = User(id, "User 2")
+
+        repository.insert(user1)
+        assertThrows<SQLException> {
+            repository.insert(user2)
+        }
+    }
+
+    @Test
     suspend fun `find returns null for unknown id`() {
         repeat(5) {
             insertUser()
@@ -41,11 +55,11 @@ class UserRepositoryTest : RepositoryTest() {
 
         repository.rename(id, "John")
 
-        assertEquals("John", getProperty("users", "name", id))
+        assertEquals("John", getString("users", "name", id))
     }
 
     @Test
-    suspend fun `rename throws for unknown device`() {
+    suspend fun `rename throws for unknown user`() {
         assertThrows<NoSuchElementException> {
             repository.rename(UUID.randomUUID(), "John")
         }
@@ -58,9 +72,7 @@ class UserRepositoryTest : RepositoryTest() {
         val changed = repository.deactivate(id)
 
         assertTrue(changed)
-        assertNotNull(
-            getProperty("users", "deactivated_at", id) { instantOrNull(it) }
-        )
+        assertNotNull(getInstant("users", "deactivated_at", id))
     }
 
     @Test
@@ -101,9 +113,7 @@ class UserRepositoryTest : RepositoryTest() {
         val changed = repository.reactivate(id)
 
         assertTrue(changed)
-        assertNull(
-            getProperty("users", "deactivated_at", id) { instantOrNull(it) }
-        )
+        assertNull(getInstant("users", "deactivated_at", id))
     }
 
     @Test
@@ -140,9 +150,7 @@ class UserRepositoryTest : RepositoryTest() {
         assertTrue(repository.deactivate(id))
         assertTrue(repository.reactivate(id))
 
-        assertNull(
-            getProperty("users", "deactivated_at", id) { instantOrNull(it) }
-        )
+        assertNull(getInstant("users", "deactivated_at", id))
     }
 
     @Test
@@ -152,9 +160,7 @@ class UserRepositoryTest : RepositoryTest() {
         val changed = repository.delete(id)
 
         assertTrue(changed)
-        assertNotNull(
-            getProperty("users", "deleted_at", id) { instantOrNull(it) }
-        )
+        assertNotNull(getInstant("users", "deleted_at", id))
     }
 
     @Test

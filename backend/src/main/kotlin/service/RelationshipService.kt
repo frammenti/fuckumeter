@@ -7,18 +7,21 @@ import dev.frammenti.fuckumeter.repository.RelationshipRepository
 import java.util.UUID
 
 class RelationshipService(private val relationships: RelationshipRepository) {
-    suspend fun get(id: UUID): RelationshipResponse {
-        val relationship =
-            relationships.find(id)
-                ?: throw ResourceNotFoundException("relationship")
-
-        return RelationshipResponse(relationship)
-    }
-
-    suspend fun getPartner(relationshipId: UUID): UUID {
-        return relationships.findPartner(relationshipId)
+    suspend fun get(id: UUID): RelationshipResponse =
+        relationships.find(id)?.let { RelationshipResponse(it) }
             ?: throw ResourceNotFoundException("relationship")
-    }
+
+    suspend fun getByPartners(
+        userId: UUID,
+        partnerId: UUID,
+    ): RelationshipResponse =
+        relationships.findByPartners(userId, partnerId)?.let {
+            RelationshipResponse(it)
+        } ?: throw ResourceNotFoundException("relationship")
+
+    suspend fun getPartner(relationshipId: UUID): UUID =
+        relationships.findPartner(relationshipId)
+            ?: throw ResourceNotFoundException("relationship")
 
     // TODO: What about partner approval?
     suspend fun createPair(userIds: Pair<UUID, UUID>): RelationshipResponse {
