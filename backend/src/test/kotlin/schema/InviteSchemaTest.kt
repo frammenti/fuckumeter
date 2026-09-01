@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test
 
 class InviteSchemaTest : SchemaTest() {
     @Test
-    suspend fun `insert fails for duplicated codes`() {
+    suspend fun `code must be unique`() {
         val code = "test"
 
         insertInvite(code = code)

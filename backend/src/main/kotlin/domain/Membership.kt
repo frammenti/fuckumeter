@@ -8,6 +8,6 @@ data class Membership(
     val userId: UUID,
     val groupId: UUID,
     val shareRelationships: Boolean = SHARE_RELATIONSHIPS,
-    val joinedAt: Instant?, // we do not initialize it in the constructor
+    val joinedAt: Instant? = null, // we do not initialize it in the constructor
     val leftAt: Instant? = null,
 ) : InternalId

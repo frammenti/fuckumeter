@@ -33,6 +33,7 @@ CREATE TABLE users (
 
     CONSTRAINT users_update_after_create CHECK (updated_at >= created_at),
     CONSTRAINT users_deactivate_after_create CHECK (deactivated_at >= created_at),
+    -- Asymmetrical
     CONSTRAINT users_delete_requires_deactivate CHECK (deleted_at IS NULL OR deactivated_at IS NOT NULL),
     CONSTRAINT users_delete_after_deactivate CHECK (deleted_at >= deactivated_at)
 );
@@ -58,6 +59,7 @@ CREATE TABLE relationships (
         FOREIGN KEY (other_relationship_id) REFERENCES relationships (id)
         DEFERRABLE INITIALLY DEFERRED,
 
+    CONSTRAINT relationships_no_self_pair CHECK (id <> other_relationship_id),
     CONSTRAINT relationships_no_self_relation CHECK (user_id <> partner_id),
 
     CONSTRAINT relationships_update_after_create CHECK (updated_at >= created_at),
@@ -101,6 +103,8 @@ CREATE TABLE memberships (
     joined_at           timestamptz,
     left_at             timestamptz,
 
+    -- Asymmetrical
+    CONSTRAINT memberships_leave_requires_join CHECK (left_at IS NULL OR joined_at IS NOT NULL),
     CONSTRAINT memberships_leave_after_join CHECK (left_at >= joined_at)
 );
 
@@ -112,6 +116,25 @@ CREATE UNIQUE INDEX memberships_user_group_uq
 -- Two-way access: list all groups for user, list all users for group
 CREATE INDEX memberships_user_id_idx ON memberships (user_id);
 CREATE INDEX memberships_group_id_idx ON memberships (group_id);
+
+-- For current members view
+-- CREATE INDEX memberships_active_idx
+--    ON memberships (group_id)
+--    WHERE joined_at IS NOT NULL
+--      AND left_at IS NULL;
+
+-- Current members
+-- CREATE VIEW active_memberships AS
+-- SELECT *
+-- FROM memberships
+-- WHERE joined_at IS NOT NULL
+--   AND left_at IS NULL;
+
+-- Pending members
+-- CREATE VIEW pending_memberships AS
+-- SELECT *
+-- FROM memberships
+-- WHERE joined_at IS NULL;
 
 -- ---------------------------------------------------------------------------
 -- Entries
@@ -184,6 +207,7 @@ CREATE TABLE invites (
                 END
             ),
 
+    -- Symmetrical
     CONSTRAINT invites_consume_requires_by_user_and_time
         CHECK (
             (consumed_by_user_id IS NULL) = (consumed_at IS NULL)
@@ -248,7 +272,7 @@ CREATE TABLE recovery_requests (
     id                    bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id               uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     partner_id            uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    invite_id             bigint      REFERENCES invites (id) ON DELETE CASCADE,
+    invite_id             bigint      REFERENCES invites (id) ON DELETE SET NULL,
     created_at            timestamptz NOT NULL DEFAULT now(),
     revoked_at            timestamptz,
     revoked_by_partner_at timestamptz,
@@ -268,6 +292,6 @@ CREATE UNIQUE INDEX recovery_requests_user_unrevoked_uq
 CREATE UNIQUE INDEX recovery_requests_partner_unrevoked_uq
     ON recovery_requests (partner_id)
     WHERE revoked_at IS NULL
-      OR revoked_by_partner_at IS NULL;
+      AND revoked_by_partner_at IS NULL;
 
 

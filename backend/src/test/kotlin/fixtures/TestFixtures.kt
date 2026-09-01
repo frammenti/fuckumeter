@@ -91,37 +91,92 @@ object TestFixtures {
         return id
     }
 
-    suspend fun insertDevice(
-        id: UUID = UUID.randomUUID(),
-        userId: UUID = runBlocking { insertUser() },
-        name: String = "Test device",
+    suspend fun insertRelationship(
+        id: UUID,
+        userId: UUID,
+        partnerId: UUID,
+        otherRelationshipId: UUID,
+        nickname: String? = null,
         notificationEnabled: Boolean = false,
+        notificationThreshold: Int = 80,
         createdAt: Instant = now(),
-        refreshToken: String = "token",
+        updatedAt: Instant? = null,
+        deactivatedAt: Instant? = null,
+        deletedAt: Instant? = null,
     ): UUID {
         database.session {
             update(
                 database.sql(
                     """
-                    INSERT INTO devices (
-                        id, user_id, name, notification_enabled,
-                        refresh_token_hash, created_at
-                    )
+                    INSERT INTO relationships (
+                        id, user_id, partner_id, other_relationship_id,
+                        nickname, notification_enabled, notification_threshold,
+                        created_at, updated_at, deactivated_at, deleted_at
+                        )
                     VALUES (
-                        :id, :user_id, :name, :notification_enabled,
-                        :refresh_token_hash, :created_at
-                    );
+                        :id, :user_id, :partner_id, :other_relationship_id,
+                        :nickname, :notification_enabled, :notification_threshold,
+                        :created_at, :updated_at, :deactivated_at, :deleted_at
+                        );
                     """,
                     "id" to id,
                     "user_id" to userId,
-                    "name" to name,
+                    "partner_id" to partnerId,
+                    "other_relationship_id" to otherRelationshipId,
+                    "nickname" to nickname,
                     "notification_enabled" to notificationEnabled,
-                    "refresh_token_hash" to hasher.hash(refreshToken),
+                    "notification_threshold" to notificationThreshold,
                     "created_at" to createdAt,
+                    "updated_at" to updatedAt,
+                    "deactivated_at" to deactivatedAt,
+                    "deleted_at" to deletedAt,
                 )
             )
         }
         return id
+    }
+
+    suspend fun insertRelationshipPair(
+        users: Pair<UUID, UUID> = runBlocking { insertUser() to insertUser() },
+        nickname: String? = null,
+        notificationEnabled: Boolean = false,
+        notificationThreshold: Int = 80,
+        createdAt: Instant = now(),
+        updatedAt: Instant? = null,
+        deactivatedAt: Instant? = null,
+        deletedAt: Instant? = null,
+    ): Pair<UUID, UUID> {
+        val ids = UUID.randomUUID() to UUID.randomUUID()
+
+        database.transaction {
+            insertRelationship(
+                id = ids.first,
+                userId = users.first,
+                partnerId = users.second,
+                otherRelationshipId = ids.second,
+                nickname = nickname,
+                notificationEnabled = notificationEnabled,
+                notificationThreshold = notificationThreshold,
+                createdAt = createdAt,
+                updatedAt = updatedAt,
+                deactivatedAt = deactivatedAt,
+                deletedAt = deletedAt,
+            )
+            insertRelationship(
+                id = ids.second,
+                userId = users.second,
+                partnerId = users.first,
+                otherRelationshipId = ids.first,
+                nickname = nickname,
+                notificationEnabled = notificationEnabled,
+                notificationThreshold = notificationThreshold,
+                createdAt = createdAt,
+                updatedAt = updatedAt,
+                deactivatedAt = deactivatedAt,
+                deletedAt = deletedAt,
+            )
+        }
+        return ids
     }
 
     suspend fun insertGroup(
@@ -143,6 +198,75 @@ object TestFixtures {
                     "updated_by_user_id" to updatedBy,
                     "created_at" to createdAt,
                     "updated_at" to updatedAt,
+                )
+            )
+        }
+        return id
+    }
+
+    suspend fun insertMembership(
+        userId: UUID = runBlocking { insertUser() },
+        groupId: UUID = runBlocking { insertGroup() },
+        shareRelationships: Boolean = false,
+        joinedAt: Instant? = now(), // can be null
+        leftAt: Instant? = null,
+    ): Long {
+        return database.session {
+            insert(
+                database.sql(
+                    """
+                    INSERT INTO memberships (
+                        user_id, group_id, share_relationships,
+                        joined_at, left_at
+                        )
+                    VALUES (
+                        :user_id, :group_id, :share_relationships,
+                        :joined_at, :left_at
+                        );
+                    """,
+                    "user_id" to userId,
+                    "group_id" to groupId,
+                    "share_relationships" to shareRelationships,
+                    "joined_at" to joinedAt,
+                    "left_at" to leftAt,
+                )
+            )
+        }!!
+    }
+
+    suspend fun insertDevice(
+        id: UUID = UUID.randomUUID(),
+        userId: UUID = runBlocking { insertUser() },
+        name: String = "Test device",
+        notificationEnabled: Boolean = false,
+        fcmToken: String? = null,
+        refreshToken: String = "token",
+        createdAt: Instant = now(),
+        lastSeenAt: Instant? = null,
+    ): UUID {
+        database.session {
+            update(
+                database.sql(
+                    """
+                    INSERT INTO devices (
+                        id, user_id, name,
+                        notification_enabled, fcm_token, refresh_token_hash,
+                        created_at, last_seen_at
+                    )
+                    VALUES (
+                        :id, :user_id, :name,
+                        :notification_enabled, :fcm_token, :refresh_token_hash,
+                        :created_at, :last_seen_at
+                    );
+                    """,
+                    "id" to id,
+                    "user_id" to userId,
+                    "name" to name,
+                    "notification_enabled" to notificationEnabled,
+                    "fcm_token" to fcmToken,
+                    "refresh_token_hash" to hasher.hash(refreshToken),
+                    "created_at" to createdAt,
+                    "last_seen_at" to lastSeenAt,
                 )
             )
         }
@@ -192,6 +316,40 @@ object TestFixtures {
                     "expires_at" to expiresAt,
                     "consumed_at" to consumedAt,
                     "revoked_at" to revokedAt,
+                )
+            )
+        }!!
+    }
+
+    suspend fun insertRecoveryRequest(
+        userId: UUID = runBlocking { insertUser() },
+        partnerId: UUID = runBlocking { insertUser() },
+        inviteId: Long? = null,
+        createdAt: Instant = now(),
+        revokedAt: Instant? = null,
+        revokedByPartnerAt: Instant? = null,
+    ): Long {
+        insertRelationshipPair(userId to partnerId)
+
+        return database.session {
+            insert(
+                database.sql(
+                    """
+                    INSERT INTO recovery_requests (
+                        user_id, partner_id, invite_id,
+                        created_at, revoked_at, revoked_by_partner_at
+                    )
+                    VALUES (
+                        :user_id, :partner_id, :invite_id,
+                        :created_at, :revoked_at, :revoked_by_partner_at
+                    );
+                    """,
+                    "user_id" to userId,
+                    "partner_id" to partnerId,
+                    "invite_id" to inviteId,
+                    "created_at" to createdAt,
+                    "revoked_at" to revokedAt,
+                    "revoked_by_partner_at" to revokedByPartnerAt,
                 )
             )
         }!!

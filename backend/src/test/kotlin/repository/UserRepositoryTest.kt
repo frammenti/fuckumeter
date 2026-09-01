@@ -7,6 +7,7 @@ import fixtures.TestFixtures.getInstant
 import fixtures.TestFixtures.getString
 import fixtures.TestFixtures.insertUser
 import java.sql.SQLException
+import java.time.Instant
 import java.util.UUID
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.assertThrows
 
 class UserRepositoryTest : RepositoryTest() {
     private val repository = UserRepository(database)
+    private val now: Instant = now()
 
     @Test
     suspend fun `insert persists user`() {
@@ -77,7 +79,7 @@ class UserRepositoryTest : RepositoryTest() {
 
     @Test
     suspend fun `deactivate fails for already deactivated user`() {
-        val id = insertUser(deactivatedAt = now())
+        val id = insertUser(createdAt = now, deactivatedAt = now)
 
         val changed = repository.deactivate(id)
 
@@ -86,7 +88,8 @@ class UserRepositoryTest : RepositoryTest() {
 
     @Test
     suspend fun `deactivate fails for deleted user`() {
-        val id = insertUser(deactivatedAt = now(), deletedAt = now())
+        val id =
+            insertUser(createdAt = now, deactivatedAt = now, deletedAt = now)
 
         val changed = repository.deactivate(id)
 
@@ -108,7 +111,7 @@ class UserRepositoryTest : RepositoryTest() {
 
     @Test
     suspend fun `reactivate clears deactivated state`() {
-        val id = insertUser(deactivatedAt = now())
+        val id = insertUser(createdAt = now, deactivatedAt = now)
 
         val changed = repository.reactivate(id)
 
@@ -125,14 +128,15 @@ class UserRepositoryTest : RepositoryTest() {
 
     @Test
     suspend fun `reactivate fails for deleted user`() {
-        val id = insertUser(deactivatedAt = now(), deletedAt = now())
+        val id =
+            insertUser(createdAt = now, deactivatedAt = now, deletedAt = now)
 
         assertFalse(repository.reactivate(id))
     }
 
     @Test
     suspend fun `reactivate cannot be performed twice`() {
-        val id = insertUser(deactivatedAt = now())
+        val id = insertUser(createdAt = now, deactivatedAt = now)
 
         assertTrue(repository.reactivate(id))
         assertFalse(repository.reactivate(id))
@@ -155,7 +159,7 @@ class UserRepositoryTest : RepositoryTest() {
 
     @Test
     suspend fun `delete marks deactivated user as deleted`() {
-        val id = insertUser(deactivatedAt = now())
+        val id = insertUser(createdAt = now, deactivatedAt = now)
 
         val changed = repository.delete(id)
 
@@ -174,7 +178,7 @@ class UserRepositoryTest : RepositoryTest() {
 
     @Test
     suspend fun `delete cannot be performed twice`() {
-        val id = insertUser(deactivatedAt = now())
+        val id = insertUser(createdAt = now, deactivatedAt = now)
 
         assertTrue(repository.delete(id))
         assertFalse(repository.delete(id))

@@ -17,6 +17,7 @@ import org.junit.jupiter.api.assertThrows
 
 class DeviceRepositoryTest : RepositoryTest() {
     private val repository = DeviceRepository(database, hasher)
+    private val now = now()
 
     @Test
     suspend fun `insert persists device`() {
@@ -180,9 +181,7 @@ class DeviceRepositoryTest : RepositoryTest() {
 
     @Test
     suspend fun `updateLastSeen stores timestamp`() {
-
-        val id = insertDevice()
-        val now = now()
+        val id = insertDevice(createdAt = now)
 
         repository.updateLastSeen(id, now)
 
